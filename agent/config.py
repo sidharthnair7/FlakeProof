@@ -14,3 +14,7 @@ TEST_NAME_COL = "Fully-Qualified Test Name (packageName.ClassName.methodName)"
 
 DEFAULT_RERUNS = 200
 MVN_TIMEOUT_SECONDS = 600
+
+# Maven executable. Absolute + forward slashes so subprocess never depends on shell PATH
+# and nothing has to survive backslash escaping.
+MVN = "C:/Users/sidhu/tools/apache-maven-3.9.16/bin/mvn.cmd"

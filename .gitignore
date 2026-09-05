@@ -5,3 +5,4 @@ __pycache__/
 workdir/
 data/*.db
 .env
+polluter-sweep.log
