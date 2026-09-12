@@ -1,70 +1,193 @@
-"""CLI entry point.
+gi"""Flakeproof CLI.
 
     python -m agent initdb
-    python -m agent verify <repo> <fqcn#method> [--times N] [--scope OtherTestClass]
-    python -m agent findpolluter <repo> <fqcn#method>
     python -m agent status
+    python -m agent prepare --target marine-api
+    python -m agent run --target marine-api [--victim Class#method] [--reruns 200] [--baseline 20]
+                        [--plant demo/candidates/*.diff] [--no-agent] [--fast-refuse] [--no-pr]
+    python -m agent gate PATCH.diff            # judge one patch, no JVM
+    python -m agent verify <repo> <fqcn#method> [--times N] [--scope Class#method]
+    python -m agent findpolluter <repo> <fqcn#method>
+    python -m agent export [--out data/replay.json]
 """
 import argparse
+import glob
+import json
+import sys
 from pathlib import Path
 
 from agent import db
 
 
+def _load_plants(patterns: list[str]):
+    """A planted patch is a .diff file with optional leading `# title:` / `# rationale:` lines."""
+    from agent.session import PlantedPatch
+    plants = []
+    for pattern in patterns:
+        for path in sorted(glob.glob(pattern)):
+            text = Path(path).read_text(encoding="utf-8")
+            title, rationale, body = Path(path).stem, "", []
+            for line in text.splitlines(keepends=True):
+                if not body and line.startswith("# title:"):
+                    title = line.split(":", 1)[1].strip()
+                elif not body and line.startswith("# rationale:"):
+                    rationale = line.split(":", 1)[1].strip()
+                elif not body and line.startswith("#"):
+                    continue
+                else:
+                    body.append(line)
+            plants.append(PlantedPatch(title=title, rationale=rationale, diff="".join(body)))
+    return plants
+
+
+def cmd_status(_args) -> None:
+    conn = db.connect()
+    t = db.tally(conn)
+    print(f"{t['attempted']} candidates judged: {t['verified']} verified, {t['refused']} refused "
+          f"({t['refused_unproven']} unproven, {t['refused_bandaid']} band-aid), {t['pending']} pending. "
+          f"{t['attempts']} attempts, {t['prs']} PRs, {t['runs']} JVM runs.")
+    for a in db.list_attempts(conn):
+        base = f"{a['baseline_passes']}/{a['baseline_runs']}" if a["baseline_runs"] else "-"
+        print(f"  #{a['id']:<3} {a['status']:<7} {a['verdict']:<16} baseline {base:>7}  "
+              f"{a['n_candidates']} cand  {a['test_name']}  {a['pr_url'] or ''}")
+
+
+def cmd_prepare(args) -> None:
+    import subprocess
+
+    from agent import repo as repo_ops
+    from agent.config import WORKDIR
+    from agent.pipeline import resolve_target
+
+    target, repo = resolve_target(args.target)
+    WORKDIR.mkdir(exist_ok=True)
+    if not (repo / ".git").exists():
+        print(f"cloning {target.repo_url} -> {repo}")
+        subprocess.run(["git", "clone", "-q", target.repo_url, str(repo)], check=True)
+    parent = repo_ops.rev_parse(repo, target.fix_commit + "^")
+    if repo_ops.head_sha(repo) != parent:
+        print(f"checking out {parent[:10]} (parent of the upstream fix)")
+        repo_ops.reset_worktree(repo)
+        repo_ops.git(repo, "checkout", "-q", parent)
+    print("resolving dependencies (online, once)...")
+    ok, tail = repo_ops.install_deps(repo)
+    if not ok:
+        print(tail)
+        sys.exit("dependency install failed")
+    ok, tail = repo_ops.compile_tests(repo)
+    if not ok:
+        print(tail)
+        sys.exit("test-compile failed")
+    print(f"ready: {repo} at {parent[:10]}")
+
+
+def cmd_run(args) -> None:
+    from agent import pipeline
+    plants = _load_plants(args.plant or [])
+    attempt_id = pipeline.run(args.target, victim=args.victim, reruns=args.reruns,
+                              baseline_runs=args.baseline, plants=plants,
+                              use_agent=not args.no_agent, fast_refuse=args.fast_refuse,
+                              open_prs=not args.no_pr)
+    conn = db.connect()
+    a = db.get_attempt(conn, attempt_id)
+    print(f"\nattempt #{attempt_id} {a['status']}: {a['verdict']}")
+    for c in a["candidates"]:
+        print(f"  #{c['id']} [{c['source']}] {c['title']}: {c['verdict']}  "
+              f"blade1 {c['blade1_passes']}/{c['blade1_runs']}  blade2 {c['blade2_verdict']} {c['blade2_category'] or ''}")
+    if a["pr_url"]:
+        print(f"  PR: {a['pr_url']}")
+
+
+def cmd_gate(args) -> None:
+    from agent.gate import judge_patch
+    text = sys.stdin.read() if args.patch == "-" else Path(args.patch).read_text(encoding="utf-8")
+    verdict = judge_patch(text, context=args.context or "", use_model=not args.no_model)
+    conn = db.connect()
+    db.init()
+    db.insert_gate_check(conn, "cli", text, verdict.verdict, verdict.category, verdict.reason,
+                         verdict.line, verdict.model_used)
+    print(json.dumps(verdict.to_dict(), indent=2))
+    sys.exit(0 if verdict.verdict == "CLEAN" else 2)
+
+
+def cmd_verify(args) -> None:
+    from agent import harness
+    fqcn, method = args.test.split("#", 1)
+    db.init()
+    result = harness.rerun(Path(args.repo), fqcn, method, times=args.times, scope=args.scope)
+    print(f"\n{result}\n{result.confidence_line()}")
+
+
+def cmd_findpolluter(args) -> None:
+    from agent.polluter import Victim, find, test_classes
+    fqcn, method = args.test.split("#", 1)
+    repo = Path(args.repo)
+    find(repo, Victim(fqcn, method), test_classes(repo))
+
+
+def cmd_export(args) -> None:
+    """Dump everything the dashboard needs, for a deployment box with no Maven or Java."""
+    conn = db.connect()
+    out = {"tally": db.tally(conn), "attempts": []}
+    for a in db.list_attempts(conn):
+        full = db.get_attempt(conn, a["id"])
+        full["runs"] = db.runs_for(conn, a["id"])
+        out["attempts"].append(full)
+    out["gate_checks"] = db.rows(conn, "SELECT * FROM gate_checks ORDER BY id DESC LIMIT 100")
+    Path(args.out).write_text(json.dumps(out, indent=1, default=str), encoding="utf-8")
+    print(f"wrote {args.out}: {len(out['attempts'])} attempts, {out['tally']['runs']} runs")
+
+
 def main() -> None:
-    p = argparse.ArgumentParser(prog="agent")
+    p = argparse.ArgumentParser(prog="flakeproof")
     sub = p.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("initdb", help="create the sqlite schema")
-    sub.add_parser("status", help="show what is recorded so far")
+    sub.add_parser("initdb", help="create the sqlite schema").set_defaults(fn=lambda a: (db.init(), print("db ready")))
+    sub.add_parser("status", help="show what is recorded so far").set_defaults(fn=cmd_status)
 
-    v = sub.add_parser("verify", help="rerun a test N times and report the pass rate")
-    v.add_argument("repo")
-    v.add_argument("test", help="fully.qualified.ClassName#methodName")
-    v.add_argument("--times", type=int, default=20)
-    v.add_argument("--scope", default=None,
-                   help="another test class to run alongside, e.g. a suspected polluter")
+    s = sub.add_parser("prepare", help="clone a target at the fix commit's parent and build it")
+    s.add_argument("--target", required=True)
+    s.set_defaults(fn=cmd_prepare)
 
-    f = sub.add_parser("findpolluter", help="find which test class breaks this one")
-    f.add_argument("repo")
-    f.add_argument("test", help="fully.qualified.ClassName#methodName")
+    s = sub.add_parser("run", help="diagnose, repair, prove, and open a PR or refuse")
+    s.add_argument("--target", required=True)
+    s.add_argument("--victim", default=None, help="Class#method among the target's recorded victims")
+    s.add_argument("--reruns", type=int, default=None, help="Blade 1 sample size (default from config)")
+    s.add_argument("--baseline", type=int, default=None, help="baseline runs before any patch")
+    s.add_argument("--plant", action="append", help="glob of .diff files to judge as planted candidates")
+    s.add_argument("--no-agent", action="store_true", help="skip the model; judge planted candidates only")
+    s.add_argument("--fast-refuse", action="store_true", help="skip Blade 1 when Blade 2 already refused")
+    s.add_argument("--no-pr", action="store_true", help="never call GitHub; save the PR body instead")
+    s.set_defaults(fn=cmd_run)
+
+    s = sub.add_parser("gate", help="judge one patch: real fix or band-aid (no JVM)")
+    s.add_argument("patch", help="path to a unified diff, or - for stdin")
+    s.add_argument("--context", default="")
+    s.add_argument("--no-model", action="store_true")
+    s.set_defaults(fn=cmd_gate)
+
+    s = sub.add_parser("verify", help="rerun a test N times and report the pass rate")
+    s.add_argument("repo")
+    s.add_argument("test", help="fully.qualified.ClassName#methodName")
+    s.add_argument("--times", type=int, default=20)
+    s.add_argument("--scope", default=None, help="Class or Class#method to run alongside")
+    s.set_defaults(fn=cmd_verify)
+
+    s = sub.add_parser("findpolluter", help="sweep every test class to find which breaks this one")
+    s.add_argument("repo")
+    s.add_argument("test")
+    s.set_defaults(fn=cmd_findpolluter)
+
+    s = sub.add_parser("export", help="dump runs.db to JSON for a replay-only deployment")
+    s.add_argument("--out", default="data/replay.json")
+    s.set_defaults(fn=cmd_export)
 
     args = p.parse_args()
-
-    if args.command == "initdb":
-        db.init()
-        print("db ready")
-        return
-
-    if args.command == "status":
-        conn = db.connect()
-        rows = list(conn.execute("""
-            SELECT a.id, a.test_name, a.verdict,
-                   COUNT(r.id) runs, COALESCE(SUM(r.passed), 0) passes
-            FROM attempts a LEFT JOIN runs r ON r.attempt_id = a.id
-            GROUP BY a.id ORDER BY a.id
-        """))
-        if not rows:
-            print("no attempts recorded yet")
-        for r in rows:
-            rate = f"{r['passes']}/{r['runs']}" if r["runs"] else "-"
-            print(f"  #{r['id']}  {r['verdict']:8}  {rate:>8}  {r['test_name']}")
-        return
-
-    fqcn, method = args.test.split("#", 1)
-
-    if args.command == "verify":
-        from agent import harness
-        result = harness.rerun(Path(args.repo), fqcn, method,
-                               times=args.times, scope=args.scope)
-        print(f"\n{result}")
-        print("VERIFIED (would open PR)" if result.all_passed
-              else f"NOT PROVEN - {result.runs - result.passes} failure(s)")
-
-    elif args.command == "findpolluter":
-        from agent.polluter import Victim, find, test_classes
-        repo = Path(args.repo)
-        find(repo, Victim(fqcn, method), test_classes(repo))
+    if args.command == "run":
+        from agent.config import BASELINE_RUNS, DEFAULT_RERUNS
+        args.reruns = args.reruns or DEFAULT_RERUNS
+        args.baseline = args.baseline or BASELINE_RUNS
+    args.fn(args)
 
 
 if __name__ == "__main__":

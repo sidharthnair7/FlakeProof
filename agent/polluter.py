@@ -14,8 +14,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
-MVN = r"C:\Users\sidhu\tools\apache-maven-3.9.16\bin\mvn.cmd"
-JAVA_HOME = r"C:\Program Files\Java\jdk-11"
+from agent.config import JAVA_HOME, MVN
 
 
 @dataclass
