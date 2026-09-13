@@ -1,9 +1,254 @@
-# Flaky Test Repair Agent
+# Flakeproof
 
-An agent that repairs flaky tests and refuses to open a pull request for any fix it cannot
-empirically prove.
+**An agent that repairs flaky tests, and refuses to open a pull request for any fix it cannot prove.**
 
-Built for the Agents for Humans Hackathon (AWS), September 2026.
+Built with **Strands Agents** on **Amazon Bedrock** (Amazon Nova 2 Lite) for the AWS Agents for Humans Hackathon.
 
-## Status
-Scaffold. See `Downloads/BUILD-PLAN.md`.
+![Built with Strands Agents](https://img.shields.io/badge/built%20with-Strands%20Agents-2563eb)
+![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-Nova%202%20Lite-ff9900)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab)
+![Unit tests](https://img.shields.io/badge/unit%20tests-21%20passing-16a34a)
+![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)
+
+---
+
+## The 30-second version
+
+- A **flaky test** passes and fails on the same code. Somebody has to triage it, find the cause, fix it, and convince reviewers the fix holds.
+- Automated repair exists, but trust is the bottleneck: FlakyGuard repairs 47.6% of reproducible flaky tests, and **developers accept 51.8% of those fixes** ([Li et al., arXiv 2511.14002](https://arxiv.org/abs/2511.14002)).
+- A `Thread.sleep`, a retry or an `@Ignore` can turn a flaky test green without fixing anything. A gate built only from reruns would approve all of them.
+- **Flakeproof is a Strands Agents graph where agents diagnose and write fixes, and a deterministic gate decides.** A fix is VERIFIED only if it passes every rerun under rotating test orders **and** contains no band-aid.
+- In our demo run, an `@Ignore` band-aid passed **30 of 30** reruns. **The gate refused it anyway** and named line 220.
+- In the agents' first full run, our own repair agent wrote a wrong fix that the model reviewer rated **95% likely to be real**. The gate refused that too.
+
+![Flakeproof architecture](docs/architecture.png)
+
+---
+
+## Who it's for
+
+Engineering teams running Java test suites in CI, and specifically whoever is on flaky-test duty this week. The job has five steps: read the red build, decide whether it is real or noise, find the cause, fix it, and convince the team the fix holds. Flakeproof does all five, and it does the last one with **evidence attached to the pull request** instead of a reviewer's trust.
+
+**Scope, stated plainly:** Flakeproof handles **order-dependent** flaky tests, where one test leaves shared state dirty and a later test fails because of it. Those reproduce deterministically by controlling test order, so hundreds of clean reruns are real evidence. It does not handle async-wait or concurrency flakes, where reruns alone would not be proof.
+
+---
+
+## How it works
+
+### The pipeline: one Strands Graph, agents and proof engine in the same orchestration
+
+| Node | Type | What it does |
+|---|---|---|
+| `intake` | deterministic | Reruns the failing test under rotating Surefire orders to measure a baseline and capture a failure trace |
+| `diagnose` | **Strands Swarm**, 4 agents | Triage, order-dependence, async and resource specialists hand the case to each other and record hypotheses with evidence |
+| `synthesize` | agent | Weighs the hypotheses and records one diagnosis: category, root cause, polluter, fix strategy |
+| `repair` | agent | Edits the code, compiles, and snapshots each fix as a candidate patch |
+| `gate` | deterministic | Judges every candidate with both blades (below) |
+| `open_pr` | agent | The only node with the pull-request tool. Reachable only through the edge whose condition is "the gate verified a candidate" |
+| `refuse` | deterministic | Runs when no candidate is verified: states the verdict, the failing blade and the offending line. No pull request |
+
+**8 LLM agents** (4 in the swarm, synthesizer, repair, PR writer, band-aid judge), **3 deterministic nodes**, **12 tools**, and **2 independent locks** on the pull request: the graph topology, and a hook that re-checks the database verdict at the moment of the call.
+
+### The gate: two blades, because one is not enough
+
+**Blade 1: does it hold?** The test is rerun N times (default 200) with the polluting test pinned at method level, under rotating Surefire orders (alphabetical, reverse alphabetical, random, filesystem). Every run must pass. The harness reads the Surefire XML, never the Maven exit code, deletes stale reports before each run, and **counts a skipped test as a failure**.
+
+**Blade 2: is it a real fix or a mask?** A deterministic scanner checks the diff against 8 band-aid families: sleep, retry, ignore, timeout, order pinning, fork isolation, weakened assertions and swallowed failures. A band-aid judge agent (structured output) gives a second opinion and can add a refusal. **It cannot overrule a scanner hit.**
+
+**Verdicts:** `VERIFIED` (Blade 2 clean and every rerun passed), `REFUSED_BANDAID`, or `REFUSED_UNPROVEN`.
+
+**What "verified" means:** 0 failures in N runs bounds the true failure rate below 3/N at 95% confidence (the rule of three): below 1.5% at 200 runs. That is proof to a stated confidence, not proof of impossibility, and every pull request body says so.
+
+### Strands Agents features used
+
+| Strands feature | How Flakeproof uses it | File |
+|---|---|---|
+| `Graph` (`GraphBuilder`) | 7-node pipeline with a conditional edge out of the gate | [`agent/pipeline.py`](agent/pipeline.py) |
+| `Swarm` | 4 diagnosis agents with handoffs, handoff limits and timeouts | [`agent/swarm.py`](agent/swarm.py) |
+| Custom `MultiAgentBase` nodes | The proof engine runs as deterministic nodes inside the same graph, so agents cannot route around it | [`agent/nodes.py`](agent/nodes.py) |
+| `@tool`, `ToolContext` | 12 tools: source reading and search, real JVM experiments (`run_pair`, `run_victim_alone`), editing, compile checks, candidate snapshots, the pull request | [`agent/tools.py`](agent/tools.py) |
+| Hooks (`HookProvider`) | `TraceHooks` log every tool call and handoff to SQLite; `RefusalGuard` cancels `open_pull_request` unless the verdict is VERIFIED | [`agent/hooks.py`](agent/hooks.py) |
+| Structured output | The band-aid judge returns a typed opinion: is it a band-aid, category, confidence, offending line | [`agent/gate.py`](agent/gate.py) |
+| `BedrockModel` | Every agent runs on Amazon Nova 2 Lite (`us.amazon.nova-2-lite-v1:0`) | [`agent/models.py`](agent/models.py) |
+
+---
+
+## The demo: one real flaky test, three candidates, three verdicts
+
+**The test.** [marine-api](https://github.com/ktuukkan/marine-api), an open-source Java library for marine navigation data. `SentenceFactory` is a singleton holding a map from sentence type to parser. `SentenceFactoryTest#testRegisterParserWithAlternativeBeginChar` registers a test-double `VDMParser` over the real one, then unregisters it, which deletes the `"VDM"` entry entirely. The class resets the factory **before** each test but never **after**, so later test classes in the same JVM that parse an AIS `VDM` sentence fail with `Parser for type 'VDM' not found`. The maintainers fixed it in [PR #109](https://github.com/ktuukkan/marine-api/pull/109) with an `@After` reset. Flakeproof works on the commit just before that fix.
+
+**The candidates** (hand-written and labelled `planted`, in [`demo/candidates/`](demo/candidates)):
+
+1. **Restore the VDM parser at the end of the test.** Looks right, but `VDMParser` in that file is the test double, so it restores the wrong class.
+2. **`@Ignore` the polluting test.** Nothing dirties the singleton any more, so every rerun passes.
+3. **The maintainers' own `@After` reset**, exactly as merged upstream.
+
+### Measured results (September 13, 2026, from `data/runs.db`)
+
+**Run 1: the gate on the planted candidates, 30 reruns each.** Baseline before any patch: 14 of 20 runs passed.
+
+| Candidate | Blade 1 | Blade 2 | Verdict |
+|---|---|---|---|
+| Restore the VDM parser (wrong class) | 17 / 30 | CLEAN (model: 95% real fix) | **REFUSED_UNPROVEN** |
+| `@Ignore` the polluting test | **30 / 30** | BANDAID: `ignore`, line 220 | **REFUSED_BANDAID** |
+| `@After` reset (upstream fix) | 30 / 30 | CLEAN | **VERIFIED** |
+
+The wrong-class patch failed every reverse-alphabetical run, the order where the polluter runs first. Wall clock: 7 min 24 s.
+
+**Run 2: the full agent pipeline, 5 reruns per candidate** (a smoke test of the agent path, not statistical evidence). Baseline: 3 of 4.
+
+| Candidate | Written by | Blade 1 | Blade 2 | Verdict |
+|---|---|---|---|---|
+| Validate AIS fragment order in `AISMessageParser` | **repair agent** | 4 / 5 | CLEAN (model: 95% real fix) | **REFUSED_UNPROVEN** |
+| Restore the VDM parser (wrong class) | planted | 3 / 5 | BANDAID (model: 90%) | REFUSED_BANDAID |
+| `@Ignore` the polluting test | planted | 5 / 5 | BANDAID: `ignore`, line 220 | REFUSED_BANDAID |
+| `@After` reset (upstream fix) | planted | 5 / 5 | CLEAN | **VERIFIED** |
+
+The run took the verified path through the graph: `intake`, `diagnose`, `synthesize`, `repair`, `gate` and `open_pr`, with every agent on Amazon Nova 2 Lite. The PR writer called `open_pull_request` for the verified fix, which saved the pull request body (dry run, no GitHub token). Wall clock: 12 min 39 s. Across both runs: 134 JVM executions, 3.6 s each on average.
+
+### What the agents actually did, and why the gate exists
+
+- The **triage agent** ran 88 `run_pair` experiments, testing suspect classes one at a time, and hit its 7-minute limit without handing off.
+- The **synthesizer** got the category right (order-dependent) and the root cause wrong: it blamed AIS fragment ordering instead of the `SentenceFactory` singleton.
+- The **repair agent** patched production code to match that wrong diagnosis. The model reviewer rated the patch 95% likely to be a real fix.
+- **The gate refused it.** A reverse-alphabetical run failed, so there was no pull request for it.
+
+The same run showed why the scanner outranks the model. The wrong-class patch was rated "95% real fix" by the model in run 1 and "90% band-aid" in run 2, after the model read the agents' wrong diagnosis. The scanner gave the same answer both times. **A model's opinion is not a safety mechanism. The rerun harness and the deterministic scanner are.**
+
+---
+
+## What is verified, and what is not
+
+| Capability | Status on September 13, 2026 |
+|---|---|
+| Rerun harness, band-aid scanner, per-candidate verdicts | **Verified**: 134 JVM runs recorded |
+| Three planted candidates, three different verdicts | **Verified** at 30 reruns |
+| Strands graph on Amazon Nova 2 Lite, verified path (intake to open_pr) | **Verified** once, at 5 reruns |
+| Gate refuses an agent-written wrong fix | **Verified** (run 2) |
+| `refuse` node (no candidate verified) | Implemented, not yet run |
+| Swarm handoffs between specialists | Not yet observed: the triage agent timed out first |
+| An agent-written fix reaching VERIFIED | Not yet |
+| Pull request opened on GitHub | Implemented; run so far as a dry run only |
+| 200-rerun demo run | Not yet recorded |
+| Amazon Bedrock AgentCore deployment of the gate | Code path exists, not deployed |
+| Web dashboard | In progress |
+
+---
+
+## Run it
+
+**Requirements:** Python 3.12, Git, JDK 11 and Maven 3.9 (the target fails to build on JDK 25), and access to Amazon Nova 2 Lite on Amazon Bedrock in `us-east-1`. Without model access, set `FLAKEPROOF_PROVIDER=none`: the harness, scanner, gate and planted candidates still run.
+
+```bash
+git clone https://github.com/sidharthnair7/FlakeProof.git
+cd FlakeProof
+python -m venv .venv
+```
+
+Activate the virtual environment (`.venv\Scripts\activate` on Windows, `source .venv/bin/activate` elsewhere), then:
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Fill in `.env`: a Bedrock API key or AWS credentials, plus `FLAKEPROOF_JAVA_HOME` and `FLAKEPROOF_MVN` for your machine.
+
+```bash
+python -m agent initdb
+python -m agent prepare --target marine-api
+```
+
+`prepare` clones marine-api, checks out the parent of the upstream fix commit and builds it once, so every rerun afterwards is offline.
+
+**Judge one patch with Blade 2 only** (no JVM, a few seconds; exit code 0 clean, 2 band-aid):
+
+```bash
+python -m agent gate demo/candidates/02-ignore-polluter.diff
+```
+
+**The gate on the planted candidates** (no agents):
+
+```bash
+python -m agent run --target marine-api --no-agent --plant "demo/candidates/*.diff" --reruns 30 --no-pr
+```
+
+**The full agent pipeline** (drop `--no-pr` and set `GITHUB_TOKEN` to open a real pull request on your fork):
+
+```bash
+python -m agent run --target marine-api --plant "demo/candidates/*.diff" --reruns 200 --no-pr
+```
+
+**See what was recorded, export it, run the tests:**
+
+```bash
+python -m agent status
+python -m agent export --out replay.json
+python -m unittest discover -s tests -t .
+```
+
+Other commands: `verify` reruns any test N times, and `findpolluter` sweeps every test class to find which one breaks a victim.
+
+**Planting your own candidate:** a `.diff` file whose first lines are `# title:` and `# rationale:`. Create it with `git diff --output=file.diff`, not shell redirection: Windows PowerShell's `>` writes UTF-16.
+
+---
+
+## Repository layout
+
+```
+agent/
+  __main__.py   CLI: initdb, status, prepare, run, gate, verify, findpolluter, export
+  pipeline.py   the Strands Graph and its conditional edges
+  swarm.py      the 4-agent diagnosis Swarm
+  nodes.py      deterministic graph nodes: intake, gate, refuse
+  tools.py      the 12 Strands tools
+  hooks.py      TraceHooks and RefusalGuard
+  gate.py       Blade 2: scanner plus structured-output model opinion
+  bandaid.py    the deterministic band-aid scanner
+  harness.py    Blade 1: rerun harness and Surefire XML parser
+  repo.py       git apply, tree reset, Maven compile
+  github.py     branch, commit and pull request through the GitHub REST API
+  polluter.py   polluter sweep used to build reproduction recipes
+  targets.py    verified reproductions (marine-api PR #109)
+  db.py         SQLite schema, writers and readers
+  models.py     model provider: Bedrock, Anthropic or none
+  schemas.py    structured output schemas
+  session.py    run context shared by tools, nodes and hooks
+  config.py     settings from the environment and .env
+demo/candidates/  the three planted patches
+docs/             architecture diagram (SVG and PNG)
+tests/            unit tests: scanner, Surefire parser, patch loading
+dashboard/        FastAPI app (UI in progress)
+```
+
+---
+
+## How the reproduction was built
+
+Targets come from [IDoFT](https://github.com/TestingResearchIllinois/idoft), the International Dataset of Flaky Tests, which records each flaky test with its category and its fix pull request, so ground truth is free. Two lessons are encoded in [`agent/targets.py`](agent/targets.py):
+
+1. **IDoFT's "SHA Detected" is not reliably where the flake lives.** Flakeproof checks out the fix commit's parent, the last state where the bug provably existed.
+2. **Class-level ordering is not always enough.** The polluting class resets state before each test, so only the last method to run leaves it dirty. The polluter is pinned at method level.
+
+The marine-api reproduction was verified by hand first: all 12 victims pass in isolation and all 12 fail when the polluting method runs first, matching the 12 tests IDoFT lists for PR #109. A second candidate, ormlite-core PR #310, was investigated and rejected: 131 of 131 candidate polluter classes swept, plus a full 1,440-test run, with zero failures.
+
+---
+
+## Prior work, and what is different here
+
+Automated repair of order-dependent tests is not new. [iFixFlakies](https://doi.org/10.1145/3338906.3338925) (ESEC/FSE 2019) fixes them by reusing "helper" tests already in the suite whose logic resets or sets the shared state, and [FlakyGuard](https://arxiv.org/abs/2511.14002) repairs flaky tests at industry scale. Flakeproof does not claim to generate better patches. Its contribution is the **refusal**: an explicit, deterministic rule for which patches must not be proposed even when they pass, with the evidence written into the pull request so a reviewer can check it instead of trusting it.
+
+---
+
+## Limitations and next steps
+
+- **Order-dependent flaky tests only.** Async-wait flakes need a different Blade 1, because controlling test order does not make them reproduce.
+- **The swarm is the weakest link today.** The triage agent explored by brute force instead of reading the stack trace first. Next: give it the polluter sweep as a tool, and tighten the prompts.
+- **One target so far.** Next: more IDoFT order-dependent tests with verified reproductions.
+- **Next:** the 200-rerun demo run, a real pull request on a fork, the dashboard, and deploying the gate on Amazon Bedrock AgentCore.
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 Sidharth Nair
