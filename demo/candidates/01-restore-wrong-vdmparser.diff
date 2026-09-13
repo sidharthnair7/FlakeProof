@@ -1,0 +1,15 @@
+# title: Restore the VDM parser after the custom-parser test
+# rationale: The test unregisters VDM and leaves it missing, so re-register VDM at the end of the test and later AIS tests can parse !AIVDM sentences again.
+diff --git a/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java b/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
+index e885723..70754d7 100644
+--- a/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
++++ b/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
+@@ -233,6 +233,8 @@ public class SentenceFactoryTest {
+ 		assertTrue(s instanceof VDMParser);
+ 		instance.unregisterParser(VDMParser.class);
+ 		assertFalse(instance.hasParser("VDM"));
++		// restore the VDM parser removed above, so later tests can parse !AIVDM
++		instance.registerParser("VDM", VDMParser.class);
+ 	}
+ 
+ 	/**

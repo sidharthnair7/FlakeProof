@@ -1,0 +1,26 @@
+# title: Reset SentenceFactory after every test (the fix upstream merged in PR #109)
+# rationale: setUp() resets the singleton before each test, but nothing resets it after the last one, so the deleted VDM entry leaks into every later test class in the JVM. An @After reset removes the leak at its source.
+diff --git a/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java b/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
+index e885723..72f54ac 100644
+--- a/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
++++ b/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
+@@ -17,6 +17,7 @@ import net.sf.marineapi.test.util.FOOParser;
+ import net.sf.marineapi.test.util.FOOSentence;
+ import net.sf.marineapi.test.util.VDMParser;
+ 
++import org.junit.After;
+ import org.junit.Before;
+ import org.junit.Test;
+ 
+@@ -35,6 +36,11 @@ public class SentenceFactoryTest {
+ 		instance.reset();
+ 	}
+ 
++	@After
++	public void tearDown() throws Exception {
++		instance.reset();
++	}
++
+ 	/**
+ 	 * Test method for
+ 	 * {@link net.sf.marineapi.nmea.parser.SentenceFactory#createParser(java.lang.String)}

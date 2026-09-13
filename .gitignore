@@ -4,5 +4,8 @@ __pycache__/
 .idea/
 workdir/
 data/*.db
+data/*.db-wal
+data/*.db-shm
+data/pr-bodies/
 .env
 polluter-sweep.log
