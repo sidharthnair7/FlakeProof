@@ -1,4 +1,4 @@
-gi"""Flakeproof CLI.
+"""Flakeproof CLI.
 
     python -m agent initdb
     python -m agent status
