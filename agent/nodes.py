@@ -225,12 +225,14 @@ def _files_in_diff(diff: str) -> list[str]:
     return files
 
 
-def _diagnosis_context(ctx: session.RunContext) -> str:
-    d = ctx.diagnosis
-    if not d:
-        return f"Flaky test {ctx.test_name}; reproduction scope: {ctx.polluter or 'unknown'}."
-    return (f"Flaky test {ctx.test_name}. Category: {d.get('category')}. Root cause: "
-            f"{d.get('root_cause')} Mechanism: {d.get('mechanism')} Fix strategy: {d.get('fix_strategy')}")
+def _judge_context(ctx: session.RunContext) -> str:
+    """What the band-aid judge is told besides the diff: the test and its reproduction scope.
+
+    Never the agents' diagnosis. In the first agentic run the judge read a wrong diagnosis and
+    called a patch it had rated "95% real fix" a "90% band-aid". A second reviewer is only
+    independent if it does not read the first reviewer's conclusions.
+    """
+    return f"Flaky test {ctx.test_name}; reproduction scope: {ctx.polluter or 'unknown'}."
 
 
 # ---- refusal ---------------------------------------------------------------------------------

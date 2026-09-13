@@ -36,6 +36,7 @@ class RunContext:
     baseline_total: int = 0
     baseline_failure: str = ""           # message + trace of the last failing baseline run
     candidate_counter: int = 0
+    run_pair_calls: int = 0              # pairings spent so far (tools.RUN_PAIR_BUDGET)
     verified_candidate_id: int | None = None
     diagnosis: dict | None = None
 

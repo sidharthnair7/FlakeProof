@@ -2,8 +2,11 @@
 
 Every call is logged to the attempt's trace, so the dashboard shows what the agents actually
 did rather than what the prompt asked them to do. The diagnosis tools are read-only plus two
-7-second experiments (run alone, run after X). The repair tools edit the working tree and
+JVM experiments (run alone, run after X). The repair tools edit the working tree and
 snapshot candidates. The PR tool exists in exactly one agent and is guarded by a hook.
+
+Examples in tool descriptions are deliberately generic. The model reads them, so they must
+never name the classes, methods or fix of a real target.
 """
 from strands import tool
 from strands.types.tools import ToolContext
@@ -13,6 +16,10 @@ from agent.schemas import CATEGORY_HELP
 
 MAX_LINES = 400
 CATEGORIES = ", ".join(CATEGORY_HELP)
+
+# run_pair guards. The first agentic run spent 88 pairings sweeping classes one at a time.
+RUN_PAIR_BUDGET = 12          # pairings per attempt, shared by the whole team
+MAX_METHOD_SWEEP = 25         # methods pinned one by one when a class-level pairing passes
 
 
 def _ctx() -> session.RunContext:
@@ -37,7 +44,7 @@ def read_source(path: str, start: int = 1, end: int = 400) -> str:
 
     Args:
         path: Path relative to the repository root, e.g.
-            src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
+            src/test/java/com/example/cache/RegistryTest.java
         start: First line to return (1-based).
         end: Last line to return. At most 400 lines per call.
     """
@@ -59,7 +66,7 @@ def search_code(pattern: str, where: str = "src") -> str:
     """Regex search over the project's Java sources. Returns up to 60 hits as path:line: text.
 
     Args:
-        pattern: A regular expression, e.g. getInstance\\(\\) or registerParser|unregisterParser
+        pattern: A regular expression, e.g. getInstance\\(\\) or clear|reset|remove
         where: Subdirectory to search: src, src/test/java or src/main/java
     """
     ctx = _ctx()
@@ -103,7 +110,7 @@ def failure_report() -> str:
 @tool
 def run_victim_alone() -> str:
     """Run the victim's test class by itself in a fresh JVM and report the victim method's
-    result. About 7 seconds. Use it to establish that the test passes in isolation."""
+    result. About 4 seconds. Use it to establish that the test passes in isolation."""
     ctx = _ctx()
     ran = harness.run_suite_once(ctx.repo, ctx.fqcn, "alphabetical", scope=None)
     result = harness.victim_result(ctx.repo, ctx.fqcn, ctx.method) if ran else None
@@ -113,18 +120,43 @@ def run_victim_alone() -> str:
     return f"{ctx.test_name} alone: {result.status.upper()} {result.message}".strip()
 
 
+def _pair_once(ctx: session.RunContext, fqcn: str, selector: str, order: str):
+    """One JVM: `selector` first, then the victim's class. Returns (victim result, first class's cases)."""
+    stale = harness.report_path(ctx.repo, fqcn)
+    if stale.exists():
+        stale.unlink()                       # the first class's report must come from this run
+    ran = harness.run_suite_once(ctx.repo, ctx.fqcn, order, scope=selector)
+    victim = harness.victim_result(ctx.repo, ctx.fqcn, ctx.method) if ran else None
+    first_ran = harness.read_report(ctx.repo, fqcn) if ran else None
+    ctx.log("tool", "run_pair", f"{selector} before {ctx.victim_simple}: "
+                                f"victim {victim.status if victim else 'did not run'}")
+    return victim, first_ran
+
+
 @tool
 def run_pair(first: str) -> str:
     """Run one JVM in which `first` executes BEFORE the victim's class, then report the victim
     method's result. This confirms or refutes a polluter hypothesis with evidence: if the victim
-    passes alone but fails after `first`, then `first` is the polluter. About 7 seconds per call,
-    so form a hypothesis from the code before calling it.
+    passes alone but fails after `first`, then `first` is the polluter. About 4 seconds per run.
+
+    If `first` is a whole class and the victim still passes, the tool then pins each of that
+    class's test methods first, one at a time (up to a minute). A class that resets shared state
+    before each test leaves it dirty only after its last method, so a class-level pairing can
+    hide the polluting method.
+
+    The whole team has 12 pairings per attempt. Form a hypothesis from the failure and the source
+    before spending one.
 
     Args:
         first: A test class (simple or fully qualified) or a Class#method selector, e.g.
-            SentenceFactoryTest#testRegisterParserWithAlternativeBeginChar
+            RegistryTest or RegistryTest#testRegisterCustomHandler
     """
     ctx = _ctx()
+    if ctx.run_pair_calls >= RUN_PAIR_BUDGET:
+        ctx.log("tool", "run_pair", f"refused: budget of {RUN_PAIR_BUDGET} pairings spent")
+        return (f"refused: the team's {RUN_PAIR_BUDGET} pairings are spent. Reason from the evidence "
+                f"you already have, record your hypothesis, then hand off or finish.")
+    ctx.run_pair_calls += 1
     cls, _, meth = first.partition("#")
     fqcn = _resolve_class(ctx, cls.strip())
     if not fqcn:
@@ -133,20 +165,30 @@ def run_pair(first: str) -> str:
         return "error: that is the victim's own class"
     order = "alphabetical" if fqcn < ctx.fqcn else "reversealphabetical"
     simple = fqcn.rsplit(".", 1)[-1]
-    selector = f"{simple}#{meth.strip()}" if meth.strip() else simple
-    ran = harness.run_suite_once(ctx.repo, ctx.fqcn, order, scope=selector)
-    victim = harness.victim_result(ctx.repo, ctx.fqcn, ctx.method) if ran else None
-    first_ran = harness.read_report(ctx.repo, fqcn) if ran else None
-    status = victim.status if victim else "did not run"
-    ctx.log("tool", "run_pair", f"{selector} before {ctx.victim_simple}: victim {status}")
-    if not ran or victim is None:
+    meth = meth.strip()
+    selector = f"{simple}#{meth}" if meth else simple
+
+    victim, first_ran = _pair_once(ctx, fqcn, selector, order)
+    if victim is None:
         return f"the victim did not run in this pairing (selector {selector!r}); check the class name"
     if not first_ran:
         return (f"{selector} produced no report, so it did not run first; the victim was "
                 f"{victim.status.upper()} but that proves nothing about {selector}")
-    n_first = len(first_ran)
-    return (f"Ran {selector} ({n_first} test(s)) before {ctx.victim_simple} under {order} order. "
-            f"Victim {ctx.method}: {victim.status.upper()} {victim.message}".strip())
+    result = (f"Ran {selector} ({len(first_ran)} test(s)) before {ctx.victim_simple} under {order} "
+              f"order. Victim {ctx.method}: {victim.status.upper()} {victim.message}".strip())
+    if meth or not victim.passed:
+        return result
+
+    # The class as a whole did not break the victim. Pin each method first in turn.
+    methods = sorted(first_ran)[:MAX_METHOD_SWEEP]
+    for name in methods:
+        pinned, _ = _pair_once(ctx, fqcn, f"{simple}#{name}", order)
+        if pinned is not None and not pinned.passed:
+            return (f"{result}\nThe class as a whole did not break the victim, so its methods were "
+                    f"pinned first one at a time. {simple}#{name} run first makes {ctx.method} "
+                    f"{pinned.status.upper()}: {pinned.message}".strip())
+    return (f"{result}\nNo single method of {simple} breaks the victim either "
+            f"({len(methods)} pinned one at a time).")
 
 
 @tool(context=True)
@@ -251,7 +293,7 @@ def propose_candidate(title: str, rationale: str) -> str:
     than a mask (Blade 2). You do not verify it yourself.
 
     Args:
-        title: short imperative title, e.g. "Reset SentenceFactory after each SentenceFactoryTest"
+        title: short imperative title, e.g. "Clear the shared cache after each CacheTest"
         rationale: why this removes the root cause rather than hiding the symptom
     """
     ctx = _ctx()
