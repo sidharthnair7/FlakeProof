@@ -22,9 +22,9 @@ const STAGES: StageInfo[] = [
   },
   {
     id: "diagnosis",
-    label: "2. Swarm Diagnosis",
+    label: "2. Diagnosis",
     badgeVariant: "amber",
-    detail: "A Strands specialist swarm investigates the shared SentenceFactory state and records its work.",
+    detail: "Run 5 used a known polluter and planted candidates. In run 4 the Strands swarm's triage agent found that polluter itself with one run_pair experiment.",
   },
   {
     id: "gate",

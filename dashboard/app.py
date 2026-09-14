@@ -46,7 +46,7 @@ def replay():
 
 @app.get("/api/attempts")
 def attempts():
-    return _read(db.list_attempts)
+    return _read(lambda conn: db._public(db.list_attempts(conn)))
 
 
 @app.get("/api/attempts/{attempt_id}")
@@ -55,7 +55,7 @@ def attempt(attempt_id: int):
         found = db.get_attempt(conn, attempt_id)
         if found:
             found["runs"] = db.runs_for(conn, attempt_id)
-        return found
+        return db._public(found)
     found = _read(load)
     if not found:
         raise HTTPException(status_code=404, detail=f"no attempt #{attempt_id}")
@@ -64,7 +64,7 @@ def attempt(attempt_id: int):
 
 @app.get("/api/attempts/{attempt_id}/runs")
 def runs(attempt_id: int):
-    return _read(lambda conn: db.runs_for(conn, attempt_id))
+    return _read(lambda conn: db._public(db.runs_for(conn, attempt_id)))
 
 
 @app.get("/{path:path}", include_in_schema=False)

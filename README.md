@@ -7,7 +7,7 @@ Built with Strands Agents and Amazon Nova 2 Lite on Amazon Bedrock for the AWS A
 ![Built with Strands Agents](https://img.shields.io/badge/built%20with-Strands%20Agents-2563eb)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-Nova%202%20Lite-ff9900)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab)
-![Unit tests](https://img.shields.io/badge/unit%20tests-48%20passing-16a34a)
+![Tests](https://github.com/sidharthnair7/FlakeProof/actions/workflows/tests.yml/badge.svg)
 ![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)
 
 ![Flakeproof landing page](docs/screenshots/landing.jpg)
@@ -64,7 +64,7 @@ The first check reruns the flaky test N times (200 in the demo) in the same JVM 
 
 The second check scans the diff for eight kinds of band-aid: sleeps, retries, ignored tests, longer timeouts, pinned test order, fork isolation, weakened assertions and swallowed failures. A Nova judge with structured output reviews the diff as well. The judge can add a refusal but cannot clear a scanner hit, and it never sees the agents' diagnosis.
 
-A candidate is `VERIFIED` only when the scan is clean and every rerun passes. Otherwise it is `REFUSED_BANDAID` or `REFUSED_UNPROVEN`. Only runs where the polluting test goes first can catch an unfixed leak, so the confidence bound counts only the run orders in which the unfixed code failed every baseline run. In the demo, the verified fix passed all 50 reverse-alphabetical runs, an order in which the unfixed code failed 13 of 13 baseline runs across all attempts. Zero failures in 50 such runs bounds the failure rate in that order below 6% at 95% confidence (the rule of three). The pull request states the bound the same way.
+A candidate is `VERIFIED` only when the scan is clean and every rerun passes. Otherwise it is `REFUSED_BANDAID` or `REFUSED_UNPROVEN`. Only runs where the polluting test goes first can catch an unfixed leak, so the confidence bound counts only the run orders in which the unfixed code failed every baseline run. In the demo, the verified fix passed all 50 reverse-alphabetical runs, an order in which the unfixed code failed 23 of 23 baseline runs across all seven attempts. Zero failures in 50 such runs bounds the failure rate in that order below 6% at 95% confidence (the rule of three). The pull request states the bound the same way.
 
 ### Strands Agents features used
 
@@ -80,7 +80,7 @@ A candidate is `VERIFIED` only when the scan is clean and every rerun passes. Ot
 
 ## Web UI
 
-The web UI is served by a FastAPI app and reads the same SQLite database, refreshing every 3 seconds, so a run in progress fills in live. Local file paths are removed before the data leaves the server. The landing page walks through the recorded demo run. The dashboard starts with what needs a decision (a pull request whose fix was proven), then lists every run with its verdicts and shows who acted in the latest agent run. Selecting a run opens its evidence: the patches side by side, reruns by test order, the diff and the event log.
+The web UI is served by a FastAPI app and reads the same SQLite database, refreshing every 5 seconds, so a run in progress fills in live. Local file paths are removed before the data leaves the server. The landing page walks through the recorded demo run. The dashboard starts with what needs a decision (a pull request whose fix was proven), then lists every run with its verdicts and shows who acted in the latest agent run. Selecting a run opens its evidence: the patches side by side, reruns by test order, the diff and the event log.
 
 ![Flakeproof dashboard](docs/screenshots/dashboard.png)
 
@@ -94,7 +94,7 @@ The three candidates in the results table are hand-written and stored in [`demo/
 
 ## Agent runs
 
-Before the 200-rerun demo, Flakeproof ran on the same flaky test four times on September 13: once with the gate alone and three times with the agents. The agent runs used 5 reruns per candidate, which tests the pipeline end to end; the statistical evidence comes from the 200-rerun demo.
+Before the 200-rerun demo, Flakeproof ran on the same flaky test four times on September 13: twice with the gate alone (runs 1 and 3) and twice with the agents (runs 2 and 4). The agent runs used 5 reruns per candidate, which tests the pipeline end to end; the statistical evidence comes from the 200-rerun demo.
 
 | Run | Setup | Outcome |
 |---|---|---|
@@ -105,7 +105,7 @@ Before the 200-rerun demo, Flakeproof ran on the same flaky test four times on S
 
 After the demo, the repair agent's run-4 patch was re-judged on its own at 200 reruns, with no model involved (run 7; run 6 was interrupted and is recorded as failed). It passed all 200, including 50 of 50 reverse-alphabetical runs, the order in which the unfixed code failed every baseline run. The patch is in [`demo/agent-run4/`](demo/agent-run4).
 
-Across runs 1 to 5, Flakeproof recorded 777 JVM executions averaging 3.5 seconds each.
+Across runs 1 to 7, Flakeproof recorded 1,019 JVM executions averaging 3.6 seconds each.
 
 ### What changed after run 2
 
@@ -262,6 +262,16 @@ Automated repair of order-dependent tests has been studied before. [iFixFlakies]
 
 - Sidharth Nair ([@sidharthnair7](https://github.com/sidharthnair7))
 - [@basudevbiju](https://github.com/basudevbiju), web UI design
+
+## Third-party work
+
+Disclosed per the hackathon rules. Everything else in this repository was written during the submission period.
+
+- **[ktuukkan/marine-api](https://github.com/ktuukkan/marine-api)** is the demo target, cloned at a fixed commit and forked for the pull request. Flakeproof does not modify it except through the candidate patches.
+- **Candidate 3 in the recorded run is the maintainers' own fix**, taken from [marine-api PR #109](https://github.com/ktuukkan/marine-api/pull/109) and planted as a demo patch so the gate could be shown accepting a real fix. Candidates 1 and 2 were written by hand as controls. The agents' own patch is the one from run 4.
+- **[IDoFT](https://github.com/TestingResearchIllinois/idoft)**, the International Dataset of Flaky Tests, is where the flaky test was found (`idoft-shortlist.csv`).
+- **Web UI components:** `Prism`, `PillNav` and `ColorBends` in `frontend/src/components/ui/` are adapted from [React Bits](https://reactbits.dev); the other primitives in that folder follow the shadcn/ui pattern. Everything else in `frontend/src/` was written for this project.
+- **Frameworks and services:** Strands Agents SDK, Amazon Bedrock (Amazon Nova 2 Lite), FastAPI, React, Vite, Tailwind, SQLite, Maven and JUnit.
 
 ## License
 

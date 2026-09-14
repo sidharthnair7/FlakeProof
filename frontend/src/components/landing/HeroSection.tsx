@@ -294,7 +294,7 @@ export const HeroSection: React.FC = () => {
                             : "bg-amber-100 text-status-amber"
                         }`}
                       >
-                        {activePatch.blade1Runs.passed ? "PASSED" : "FAILED (17/30)"}
+                        {activePatch.blade1Runs.passed ? "PASSED" : `FAILED (${activePatch.blade1Runs.passedRuns}/${activePatch.blade1Runs.totalRuns})`}
                       </span>
                     </div>
 
@@ -399,7 +399,7 @@ export const HeroSection: React.FC = () => {
           {/* Telemetry Footer */}
           <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-slate-600">
             <div className="flex items-center gap-4">
-              <span>Diagnosis: Swarm (Nova 2 Lite)</span>
+              <span>Candidates: planted by hand (run 5) · Judge: Nova 2 Lite</span>
               <span>•</span>
               <span className="text-status-teal font-semibold">Two-Blade Gate: Active</span>
               <span>•</span>

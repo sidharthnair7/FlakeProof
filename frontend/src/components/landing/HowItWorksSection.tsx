@@ -40,7 +40,7 @@ const STEPS: Step[] = [
         "Baseline: 20 controlled runs",
         "Pass: 13 | Fail: 7 | Failure rate: 35%",
         "Reverse alphabetical: 0/5 passed",
-        "-> Dispatched to Diagnosis Swarm on Amazon Bedrock",
+        "-> Judging 3 planted candidates (the agents' own run is #4)",
       ],
     },
   },
@@ -78,16 +78,16 @@ const STEPS: Step[] = [
       "A synthesizer agent formally records the diagnosis into SQLite, and a repair agent powered by Amazon Nova 2 Lite generates candidate patches to fix the root cause without masking it.",
     features: [
       "Synthesizes teardown reset hooks (@After / @AfterEach)",
-      "Generates multiple candidate strategies for deterministic evaluation",
+      "Proposes one candidate per run; the gate judges every candidate the same way",
       "All candidate patches and their verdicts logged to SQLite",
     ],
     codeSnippet: {
-      filename: "candidate-patches.patch",
+      filename: "demo/candidates (planted for run 5)",
       code: [
         "Candidate 1: Re-registers VDM after the custom-parser test",
         "Candidate 2: Annotates polluter test with @Ignore",
         "Candidate 3: Adds @After teardown resetting SentenceFactory singleton",
-        "// Sending all 3 candidates to the Deterministic Gate...",
+        "// Run 4: the repair agent's own patch (inline reset) verified 5/5, then 200/200 in run 7",
       ],
     },
   },
@@ -130,7 +130,7 @@ const STEPS: Step[] = [
     codeSnippet: {
       filename: "GitHub PR #1 - marine-api fork",
       code: [
-        "Title: Fix order-dependent AIS test flake via SentenceFactory reset",
+        "Title: Reset SentenceFactory after every test (the fix upstream merged in PR #109)",
         "Evidence:",
         "- Blade 1: 200/200 controlled reruns passed",
         "- Blade 2: deterministic diff scan found no band-aids",

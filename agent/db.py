@@ -295,10 +295,11 @@ def runs_for(conn, attempt_id: int, candidate_id: int | None = None, phase: str 
 
 def _redact(text: str) -> str:
     """Paths on this machine become repository-relative (or ~), in any of the spellings the
-    events hold: plain, forward slashes, or backslashes doubled by JSON."""
+    events hold: plain, forward slashes, backslashes doubled by JSON, or doubled twice when a
+    tool result carries JSON inside JSON. Longest spelling first."""
     for base, spelled_as in ((ROOT, ""), (Path.home(), "~")):
         raw = str(base).replace("\\", "/")
-        for sep in ("\\\\", "\\", "/"):
+        for sep in ("\\\\\\\\", "\\\\", "\\", "/"):
             path = raw.replace("/", sep)
             text = text.replace(path + sep, f"{spelled_as}{sep}" if spelled_as else "")
             text = text.replace(path, spelled_as or ".")

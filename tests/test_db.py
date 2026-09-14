@@ -1,4 +1,5 @@
 """SQLite layer: migrating an old database, and the replay document the web UI reads."""
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -77,17 +78,23 @@ class Database(unittest.TestCase):
                          f"dry run: PR body saved to {ROOT / 'data' / 'pr-bodies' / 'attempt-1.md'}")
             db.log_event(conn, aid, "tool_result", "triage",
                          {"result": f"error: {Path.home() / 'elsewhere' / 'X.java'}"})
+            # A tool result that carries JSON inside JSON doubles the backslashes twice.
+            db.log_event(conn, aid, "tool_result", "triage",
+                         {"result": json.dumps({"path": str(Path.home() / "elsewhere" / "Y.java")})})
             data = db.replay(conn)
+            summaries = db._public(db.list_attempts(conn))
         finally:
             conn.close()
 
         attempt = data["attempts"][0]
         self.assertNotIn("repo_path", attempt)
+        self.assertNotIn("repo_path", summaries[0])
         details = [e["detail"] for e in attempt["events"]]
         self.assertTrue(details[0].endswith(str(Path("data") / "pr-bodies" / "attempt-1.md")), details[0])
         home = str(Path.home())
         for detail in details:
-            for spelling in (home, home.replace("\\", "/"), home.replace("\\", "\\\\")):
+            for spelling in (home, home.replace("\\", "/"), home.replace("\\", "\\\\"),
+                             home.replace("\\", "\\\\\\\\")):
                 self.assertNotIn(spelling, detail)
 
 
