@@ -14,6 +14,28 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // React Router updates the URL hash without the browser's native anchor jump.
+  // Resolve it after the landing route has rendered so these links also work from
+  // /dashboard and on a direct URL such as /#two-blade-gate.
+  useEffect(() => {
+    if (location.pathname !== "/") return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const behavior: ScrollBehavior = reduceMotion ? "auto" : "smooth";
+
+    if (!location.hash) {
+      window.scrollTo({ top: 0, behavior });
+      return;
+    }
+
+    const targetId = decodeURIComponent(location.hash.slice(1));
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior, block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash, location.pathname]);
+
   // Global keyboard shortcut: Cmd+D / Ctrl+D opens Agent Console Dashboard
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -36,9 +58,9 @@ export const Navbar: React.FC = () => {
         {/* Animated React Bits PillNav with FlakeProof Branding */}
         <PillNav
           logo="/flakeproof-logo.svg"
-          logoAlt="FlakeProof AWS Hackathon Agent"
+          logoAlt="FlakeProof"
           items={NAV_ITEMS}
-          activeHref={location.pathname}
+          activeHref={`${location.pathname}${location.hash}`}
           baseColor="#0B132B"
           pillColor="transparent"
           hoveredPillTextColor="#FFFFFF"
@@ -47,7 +69,7 @@ export const Navbar: React.FC = () => {
           initialLoadAnimation={true}
         />
 
-        {/* AWS Hackathon Live Action Pill */}
+        {/* Live action pill */}
         <div className="hidden lg:flex items-center gap-2">
           <Link
             to="/dashboard"

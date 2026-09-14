@@ -57,7 +57,7 @@ export const HeroSection: React.FC = () => {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Hero Header */}
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto space-y-6">
-          {/* AWS Hackathon Announcement Pill */}
+          {/* Stack pill */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -65,11 +65,11 @@ export const HeroSection: React.FC = () => {
           >
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 border border-border shadow-xs text-xs font-medium text-foreground backdrop-blur-md hover:border-navy-300 transition-all">
               <span className="px-2 py-0.5 rounded-full bg-amber-100 text-status-amber font-mono font-semibold text-[11px]">
-                AWS &quot;Agents for Humans&quot; Entry
+                Built with Strands Agents
               </span>
               <span className="text-border">•</span>
               <span className="text-foreground/80 font-mono">
-                Amazon Nova 2 Lite &bull; Strands Agents &bull; Bedrock
+                Amazon Nova 2 Lite on Amazon Bedrock
               </span>
               <ArrowRight className="w-3 h-3 text-foreground/50 ml-0.5" />
             </div>
@@ -157,7 +157,7 @@ export const HeroSection: React.FC = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.65, ease: "easeOut" }}
-          className="mt-14 max-w-5xl mx-auto rounded-2xl border border-slate-200 shadow-[0_20px_50px_-12px_rgba(11,19,43,0.12)] overflow-hidden bg-white"
+          className="mt-14 max-w-5xl mx-auto scroll-mt-28 rounded-2xl border border-slate-200 shadow-[0_20px_50px_-12px_rgba(11,19,43,0.12)] overflow-hidden bg-white"
         >
           {/* Terminal Titlebar */}
           <div className="px-5 py-3.5 bg-slate-50/90 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">

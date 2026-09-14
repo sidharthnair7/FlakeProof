@@ -148,7 +148,7 @@ export const HowItWorksSection: React.FC = () => {
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
           <div className="flex items-center justify-center gap-2">
             <Badge variant="teal" size="sm">
-              AWS "Agents for Humans" Hackathon
+              Strands Agents
             </Badge>
             <Badge variant="navy" size="sm">
               Amazon Nova 2 Lite
@@ -167,10 +167,12 @@ export const HowItWorksSection: React.FC = () => {
           {STEPS.map((step, idx) => (
             <motion.div
               key={step.stepNumber}
+              id={step.stepNumber === "04" ? "two-blade-gate" : undefined}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.5, delay: idx * 0.1, ease: "easeOut" }}
+              className={step.stepNumber === "04" ? "scroll-mt-28" : undefined}
             >
               <Card className="p-6 md:p-7 hover:border-navy-300 transition-all">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
