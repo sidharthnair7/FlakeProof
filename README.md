@@ -124,7 +124,7 @@ The tool descriptions had used this project's class and method names as examples
 | Gate refuses a wrong fix written by the repair agent | Verified (run 2) |
 | Refusal path with no pull request | Verified (run 3) |
 | Agents find the cause and write a fix the gate verifies | Verified: found and fixed in run 4 (5 reruns); the same patch passed 200 of 200 when re-judged in run 7 |
-| Web UI on live data | Verified in a browser |
+| Web UI on live data | Verified in a browser; live at [flakeproof.me/dashboard](https://flakeproof.me/dashboard) (Amazon EC2) |
 | Handoffs between swarm specialists | Not yet observed |
 | Deployment of the gate on Amazon Bedrock AgentCore | Not deployed |
 
