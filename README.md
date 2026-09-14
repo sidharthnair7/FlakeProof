@@ -275,4 +275,4 @@ Disclosed per the hackathon rules. Everything else in this repository was writte
 
 ## License
 
-[MIT](LICENSE) © 2026 Sidharth Nair
+[MIT](LICENSE) © 2026 Sidharth Nair and Basudev Biju
