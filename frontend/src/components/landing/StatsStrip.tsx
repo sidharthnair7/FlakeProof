@@ -15,19 +15,19 @@ export const StatsStrip: React.FC = () => {
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
         >
           <StatCard
-            title="Two-Blade Determinism"
+            title="Recorded Gate Evidence"
             value="200 Runs"
-            subtitle="Blade 1: 100% pass required across random orders"
+            subtitle="Blade 1: every controlled rerun must pass"
             change="Zero test flakes tolerated"
             changeType="positive"
             icon={<ShieldCheck className="w-4 h-4 text-status-teal" />}
             progressPercent={100}
           />
           <StatCard
-            title="Band-Aid Refusal Rate"
-            value="100%"
+            title="Band-Aid Policy"
+            value="Hard Refusal"
             subtitle="Blade 2: Refuses sleep, retry, @Ignore & pinned order"
-            change="AST proof enforcement"
+            change="Deterministic diff enforcement"
             changeType="positive"
             icon={<Zap className="w-4 h-4 text-status-amber" />}
             progressPercent={100}
@@ -36,15 +36,15 @@ export const StatsStrip: React.FC = () => {
             title="Diagnosis Swarm"
             value="4 Agents"
             subtitle="Triage, Order, Async, Resource on Bedrock Nova 2 Lite"
-            change="Strands Agent handoffs"
+            change="Strands specialist routing"
             changeType="positive"
             icon={<Activity className="w-4 h-4 text-status-teal" />}
             progressPercent={100}
           />
           <StatCard
             title="SQLite Audit Log"
-            value="100% Proven"
-            subtitle="Every run, candidate patch & AST scan persisted"
+            value="Recorded Evidence"
+            subtitle="Every run, candidate patch & diff scan persisted"
             change="GitHub PR with evidence"
             changeType="positive"
             icon={<GitPullRequest className="w-4 h-4 text-navy" />}

@@ -18,12 +18,7 @@ export const Footer: React.FC = () => {
               <ShieldCheck className="w-4 h-4 text-status-teal-border" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-foreground">FlakeProof</span>
-                <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                  AWS Agents for Humans Hackathon
-                </span>
-              </div>
+              <span className="font-bold text-sm text-foreground">FlakeProof</span>
               <p className="text-xs text-foreground/60 mt-0.5">
                 Powered by Strands Agents &amp; Amazon Nova 2 Lite on Amazon Bedrock. Two-Blade Deterministic Gate.
               </p>
@@ -41,7 +36,7 @@ export const Footer: React.FC = () => {
               marine-api Case Study
             </a>
             <a
-              href="https://github.com/openbase/marine-api"
+              href="https://github.com/ktuukkan/marine-api"
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1 hover:text-foreground transition-colors"
@@ -52,7 +47,7 @@ export const Footer: React.FC = () => {
           </div>
 
           <div className="text-xs text-foreground/50 font-mono">
-            &copy; {new Date().getFullYear()} FlakeProof • No AI in the gate. Refuses all unproven fixes.
+            &copy; {new Date().getFullYear()} FlakeProof • The deterministic gate has final approval authority.
           </div>
         </div>
       </div>

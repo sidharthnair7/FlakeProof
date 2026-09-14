@@ -10,6 +10,7 @@ commit is attributed to that token's owner.
 """
 import base64
 import math
+import re
 import time
 from pathlib import Path
 
@@ -133,6 +134,11 @@ def _scanner_words(reason: str) -> str:
     return (reason or "").split(" Model", 1)[0].strip()
 
 
+def _no_mentions(text: str) -> str:
+    """GitHub links @After or @Ignore to a user with that name and notifies them. Code spans are never linked."""
+    return re.sub(r"(?<![`\w])@([A-Za-z]\w*)", r"`@\1`", text)
+
+
 def _order_label(orders: list[str]) -> str:
     return " and ".join(ORDER_NAMES.get(o, o) for o in orders)
 
@@ -222,7 +228,7 @@ def render_pr_body(attempt: dict, candidate: dict, summary: str, runs: list[dict
         lines += [f"Every rerun and the agent trace: {dashboard_url.rstrip('/')}/dashboard?run={attempt['id']}", ""]
     lines.append("_Flakeproof opens a pull request only for a fix that passed every rerun and the band-aid "
                  f"scan. Project: {PROJECT_URL}_")
-    return "\n".join(lines)
+    return _no_mentions("\n".join(lines))
 
 
 def evidence_body(conn, attempt: dict, cand: dict, summary: str) -> str:

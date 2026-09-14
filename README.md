@@ -7,7 +7,7 @@ Built with Strands Agents and Amazon Nova 2 Lite on Amazon Bedrock for the AWS A
 ![Built with Strands Agents](https://img.shields.io/badge/built%20with-Strands%20Agents-2563eb)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-Nova%202%20Lite-ff9900)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab)
-![Unit tests](https://img.shields.io/badge/unit%20tests-47%20passing-16a34a)
+![Unit tests](https://img.shields.io/badge/unit%20tests-48%20passing-16a34a)
 ![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)
 
 ![Flakeproof landing page](docs/screenshots/landing.jpg)

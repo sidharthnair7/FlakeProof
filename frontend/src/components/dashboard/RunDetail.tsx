@@ -14,6 +14,7 @@ interface RunDetailProps {
 function runSentence(t: FlakyTestCase): string {
   const before = t.baselineRuns ? `Before any fix, the test passed ${t.baselinePasses} of ${t.baselineRuns} runs. ` : "";
   if (t.status === "RUNNING") return `${before}This run is still in progress.`;
+  if (t.status === "INTERRUPTED") return `${before}This run was interrupted and is excluded from proof.`;
   if (t.status === "FAILED") return `${before}This run stopped before it finished.`;
   const fix = t.candidatePatches.find((p) => p.verdict === "VERIFIED");
   const refused = t.candidatePatches.filter((p) => p.verdict === "REFUSED_BANDAID" || p.verdict === "REFUSED_UNPROVEN").length;

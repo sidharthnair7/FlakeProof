@@ -37,7 +37,7 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
       {rows.map((test) => {
         const verifiedPatch = test.candidatePatches.find((p) => p.verdict === "VERIFIED");
         const candidateBranches = test.candidatePatches;
-        const commitHash = `0x${test.attemptId.toString(16).padStart(2, "0")}f${test.baselineRuns.toString(16)}`;
+        const commitHash = "recorded attempt #" + test.attemptId;
 
         return (
           <div
@@ -70,6 +70,11 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
 
               <div className="flex items-center gap-2.5">
                 <VerdictTag verdict={test.verdict} />
+                {test.status === "INTERRUPTED" && (
+                  <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">
+                    Interrupted — excluded from proof
+                  </span>
+                )}
                 {test.prUrl && (
                   <a
                     href={test.prUrl}
@@ -109,12 +114,12 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                 <div className="flex-1 pb-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-navy-50 text-navy border border-navy-200">
-                      main
+                      baseline
                     </span>
                     <span className="font-mono text-[11px] text-foreground/50">{commitHash}</span>
                     <span className="text-border">•</span>
                     <span className="text-xs font-semibold text-foreground">
-                      Baseline Intermittent Flake: {test.victimTest}
+                      Recorded baseline: {test.victimTest}
                     </span>
                   </div>
 
@@ -147,19 +152,13 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
               <div className="space-y-4 pl-3 sm:pl-4">
                 <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-foreground/50">
                   <GitBranch className="w-3.5 h-3.5 text-navy" />
-                  <span>Swarm Repair Branches ({candidateBranches.length} Candidates Evaluated):</span>
+                  <span>Candidate evaluations ({candidateBranches.length} patches judged):</span>
                 </div>
 
                 {candidateBranches.map((patch, pIdx) => {
                   const isVerified = patch.verdict === "VERIFIED";
                   const isBandaid = patch.verdict === "REFUSED_BANDAID";
-                  const branchName = isVerified
-                    ? `fix/patch-${patch.number}-hermetic-reset`
-                    : isBandaid
-                    ? `bandaid/patch-${patch.number}-${patch.blade2.category || "mask"}`
-                    : `try/patch-${patch.number}-incomplete-restore`;
-
-                  const patchHash = `0x${test.attemptId}${patch.number}d9`;
+                  const branchName = "candidate patch #" + patch.number;
                   const isDiffOpen = expandedDiffs[patch.id] ?? false;
 
                   return (
@@ -203,9 +202,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-white border border-border text-foreground">
                                 {branchName}
-                              </span>
-                              <span className="font-mono text-[11px] text-foreground/50">
-                                {patchHash}
                               </span>
                               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-subtle text-foreground/70">
                                 {patch.source === "agent" ? "Swarm Nova 2 Lite" : "Planted"}
@@ -278,7 +274,7 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                             <div className="flex items-center justify-between font-mono text-[11px]">
                               <span className="font-bold flex items-center gap-1 text-foreground">
                                 <ShieldCheck className="w-3 h-3 text-navy" />
-                                Blade 2: AST Scan
+                                Blade 2: Diff Scan
                               </span>
                               <span
                                 className={`font-bold ${
@@ -287,7 +283,7 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                                     : "text-red-600"
                                 }`}
                               >
-                                {patch.blade2.verdict === "CLEAN" ? "AST Clean" : "Band-Aid Refused"}
+                                {patch.blade2.verdict === "CLEAN" ? "Scan clean" : "Band-Aid refused"}
                               </span>
                             </div>
                             <p className="text-[11px] text-foreground/70 truncate">
@@ -314,7 +310,20 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
               </div>
 
               {/* 3. Merge Commit back to Main (if verified fix exists) */}
-              {verifiedPatch ? (
+              {test.status === "INTERRUPTED" ? (
+                <div className="relative flex items-start gap-4 pt-1">
+                  <div className="flex flex-col items-center shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center ring-4 ring-amber-50">
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900">
+                    <span className="font-semibold">Interrupted — excluded from proof:</span> this run ended before its
+                    planned checks completed, so its partial reruns cannot support a verdict.
+                  </div>
+                </div>
+              ) : verifiedPatch ? (
                 <div className="relative flex items-start gap-4 pt-2">
                   <div className="flex flex-col items-center shrink-0">
                     <div className="w-6 h-6 rounded-full bg-status-teal text-white flex items-center justify-center shadow-xs ring-4 ring-teal-50">
@@ -326,12 +335,12 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2 font-mono font-bold text-teal-950">
                         <span className="px-1.5 py-0.5 rounded bg-teal-200 text-teal-900 text-[10px]">
-                          MERGED INTO MAIN
+                          VERIFIED BY GATE
                         </span>
-                        <span>Merge branch &apos;fix/patch-{verifiedPatch.number}&apos;</span>
+                        <span>Candidate patch #{verifiedPatch.number}</span>
                       </div>
                       <p className="text-teal-800 text-[11px]">
-                        Fix proven across {verifiedPatch.blade1.runs} random order replays and verified clean by AST scanner.
+                        Passed {verifiedPatch.blade1.passes} of {verifiedPatch.blade1.runs} controlled reruns with a clean deterministic diff scan.
                       </p>
                     </div>
 
@@ -362,7 +371,7 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                   </div>
 
                   <div className="flex-1 p-3 rounded-xl bg-surface-subtle border border-border text-xs text-foreground/60">
-                    <span className="font-semibold text-foreground/80">No merge to main:</span> All candidate patches were refused by the Two-Blade Gate. Zero unproven fixes merged.
+                    <span className="font-semibold text-foreground/80">No verified candidate:</span> the gate refused every patch, so no pull request was proposed.
                   </div>
                 </div>
               )}

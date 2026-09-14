@@ -9,7 +9,7 @@ import { RunDetail } from "../components/dashboard/RunDetail";
 import { ColorBends } from "../components/ui/ColorBends";
 
 export const DashboardPage: React.FC = () => {
-  const { testCases, agents, agentsAttemptId, logs, tally, loading, error, isDemoMode, lastUpdated } = useReplay();
+  const { testCases, agents, agentsAttemptId, logs, tally, loading, error, lastUpdated } = useReplay();
   const [params, setParams] = useSearchParams();
   const selected = testCases.find((t) => String(t.attemptId) === params.get("run")) ?? null;
   const open = useCallback((attemptId: number) => setParams({ run: String(attemptId) }), [setParams]);
@@ -43,30 +43,12 @@ export const DashboardPage: React.FC = () => {
         <DashboardHeader tally={tally} lastUpdated={lastUpdated} error={error} running={running} />
 
         <main className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6">
-          {isDemoMode && (
-            <div className="rounded-xl border border-amber-200/80 bg-white/90 backdrop-blur-md px-4 py-3 text-xs text-amber-900 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 rounded-full bg-status-amber animate-pulse" />
-                  <span className="font-bold font-mono uppercase tracking-wide text-amber-950">
-                    Recorded Replay (Demo Mode)
-                  </span>
-                </div>
-                <p className="text-amber-800">
-                  Live backend is offline. Showing persisted SQLite audit runs and 4-agent swarm evidence. To run live:{" "}
-                  <code className="font-mono bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300 text-slate-900">
-                    python -m uvicorn dashboard.app:app --port 8000
-                  </code>
-                </p>
-              </div>
-              <span className="shrink-0 px-2.5 py-1 rounded-full bg-amber-100 text-status-amber font-mono font-bold text-[11px] self-start sm:self-center border border-amber-200">
-                All Features Interactive
-              </span>
-            </div>
-          )}
-
           {loading && !testCases.length ? (
             <p className="text-sm text-foreground/60">Loading recorded runs...</p>
+          ) : error && !testCases.length ? (
+            <div className="rounded-xl border border-red-200/80 bg-white/90 px-4 py-3 text-sm text-red-900 shadow-card">
+              The recorded evidence is unavailable. This dashboard intentionally does not substitute illustrative data for live audit records.
+            </div>
           ) : (
             <>
               <NeedsYou testCases={testCases} onOpen={open} />

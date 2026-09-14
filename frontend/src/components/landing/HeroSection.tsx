@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Prism } from "../ui/Prism";
-import { MARINE_API_TEST_CASE } from "../../lib/mockData";
+import { MARINE_API_CASE_STUDY } from "../../lib/caseStudy";
 import {
   Terminal,
   ArrowRight,
@@ -20,7 +20,7 @@ import {
 export const HeroSection: React.FC = () => {
   const [selectedPatchIndex, setSelectedPatchIndex] = useState<number>(2); // Default to verified maintainer fix
 
-  const activePatch = MARINE_API_TEST_CASE.candidatePatches[selectedPatchIndex];
+  const activePatch = MARINE_API_CASE_STUDY.candidatePatches[selectedPatchIndex];
 
   const handleSelectPatch = (index: number) => {
     setSelectedPatchIndex(index);
@@ -97,7 +97,7 @@ export const HeroSection: React.FC = () => {
             transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
             className="text-base sm:text-lg md:text-xl text-slate-600 max-w-3xl mx-auto font-normal leading-relaxed"
           >
-            Existing repair tools generate masks: a <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">sleep</code>, a <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">retry</code>, or <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">@Ignore</code> turns the test green without fixing the cause. FlakeProof uses a 4-agent swarm on Amazon Nova 2 Lite to find root causes, and a <strong>deterministic Two-Blade Gate (no AI inside)</strong> to refuse band-aids and unproven patches.
+            Existing repair tools generate masks: a <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">sleep</code>, a <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">retry</code>, or <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">@Ignore</code> turns the test green without fixing the cause. FlakeProof uses a 4-agent swarm on Amazon Nova 2 Lite to investigate root causes, while a <strong>deterministic Two-Blade Gate has final approval authority</strong> over band-aids and unproven patches.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -141,7 +141,7 @@ export const HeroSection: React.FC = () => {
             <span className="text-border">•</span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-border shadow-2xs font-medium text-slate-700">
               <ShieldCheck className="w-3.5 h-3.5 text-status-teal" />
-              Two-Blade Gate (200 Order Replays + AST Scan)
+              Two-Blade Gate (200 controlled reruns + diff scan)
             </span>
             <span className="text-border">•</span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-border shadow-2xs font-medium text-slate-700">
@@ -174,7 +174,7 @@ export const HeroSection: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200/80 text-slate-700">
-                SQLite Audit ID: {MARINE_API_TEST_CASE.sqliteAuditId}
+                Recorded evidence: {MARINE_API_CASE_STUDY.sqliteAuditId}
               </span>
             </div>
           </div>
@@ -184,10 +184,10 @@ export const HeroSection: React.FC = () => {
             <ShieldAlert className="w-4 h-4 text-status-amber shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="font-semibold text-slate-900">
-                Ground-Truth Flake: Shared Singleton Parser Deletion in <code className="font-mono bg-white px-1 py-0.5 rounded border border-amber-200">SentenceFactory.getInstance()</code>
+                Recorded case study: Shared <code className="font-mono bg-white px-1 py-0.5 rounded border border-amber-200">SentenceFactory</code> state leak
               </p>
               <p className="text-slate-600 leading-relaxed">
-                <code className="font-mono text-[11px] text-amber-900">SentenceFactoryTest.testDeleteParser()</code> deletes the GLL sentence parser from the shared singleton and never resets it. When <code className="font-mono text-[11px] text-amber-900">PositionProviderTest.testGLLSentence()</code> runs afterward, it fails to parse GPS coordinates.
+                <code className="font-mono text-[11px] text-amber-900">SentenceFactoryTest#testRegisterParserWithAlternativeBeginChar</code> unregisters VDM from a shared factory. Without teardown cleanup, <code className="font-mono text-[11px] text-amber-900">AISMessageFactoryTest#testCreate</code> can inherit that state in the same JVM.
               </p>
             </div>
           </div>
@@ -199,7 +199,7 @@ export const HeroSection: React.FC = () => {
             </span>
 
             <div className="flex flex-wrap items-center gap-2">
-              {MARINE_API_TEST_CASE.candidatePatches.map((patch, idx) => {
+              {MARINE_API_CASE_STUDY.candidatePatches.map((patch, idx) => {
                 const isSelected = selectedPatchIndex === idx;
                 const verdictBadge =
                   patch.verdict === "VERIFIED"
@@ -274,7 +274,7 @@ export const HeroSection: React.FC = () => {
 
                 {/* Two-Blade Evaluation Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Blade 1: 200-Run Order Permutation Replay */}
+                  {/* Blade 1: controlled reruns */}
                   <div
                     className={`p-4 rounded-xl border space-y-2 ${
                       activePatch.blade1Runs.passed
@@ -285,7 +285,7 @@ export const HeroSection: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono font-bold text-slate-900 flex items-center gap-1.5">
                         <Layers className="w-3.5 h-3.5 text-status-teal" />
-                        BLADE 1: 200 Order Replays
+                        BLADE 1: Controlled Reruns
                       </span>
                       <span
                         className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
@@ -300,7 +300,7 @@ export const HeroSection: React.FC = () => {
 
                     <div className="text-xs text-slate-700 space-y-1">
                       <div className="flex justify-between text-[11px] font-mono">
-                        <span>Permutation Pass Rate:</span>
+                        <span>Rerun Pass Rate:</span>
                         <span className="font-bold">{activePatch.blade1Runs.passRate}%</span>
                       </div>
                       <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
@@ -317,7 +317,7 @@ export const HeroSection: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Blade 2: AST Band-Aid Scanner (No AI) */}
+                  {/* Blade 2: deterministic band-aid diff scan */}
                   <div
                     className={`p-4 rounded-xl border space-y-2 ${
                       activePatch.blade2Scan.passed
@@ -328,7 +328,7 @@ export const HeroSection: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono font-bold text-slate-900 flex items-center gap-1.5">
                         <ShieldCheck className="w-3.5 h-3.5 text-navy" />
-                        BLADE 2: Band-Aid AST Scanner
+                        BLADE 2: Band-Aid Diff Scan
                       </span>
                       <span
                         className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
@@ -345,7 +345,7 @@ export const HeroSection: React.FC = () => {
                       <p className="text-[11px] leading-relaxed">{activePatch.blade2Scan.explanation}</p>
                       {activePatch.blade2Scan.offendingLine && (
                         <div className="mt-1 p-2 rounded bg-red-100/70 border border-red-200 font-mono text-[11px] text-red-900">
-                          <strong>Offending AST Mask:</strong> {activePatch.blade2Scan.offendingLine}
+                          <strong>Offending pattern:</strong> {activePatch.blade2Scan.offendingLine}
                         </div>
                       )}
                     </div>
@@ -364,7 +364,7 @@ export const HeroSection: React.FC = () => {
                         className="text-status-teal hover:underline flex items-center gap-1 font-semibold"
                       >
                         <GitPullRequest className="w-3.5 h-3.5" />
-                        PR #142 (Merged by Maintainers)
+                        Open recorded PR #1
                       </a>
                     )}
                   </div>

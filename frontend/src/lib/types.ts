@@ -51,7 +51,7 @@ export interface FlakyTestCase {
   repository: string;
   filePath: string;
   stage: PipelineStage;
-  status: "RUNNING" | "DONE" | "FAILED";
+  status: "RUNNING" | "DONE" | "FAILED" | "INTERRUPTED";
   verdict: GateVerdict | "PENDING";
   agentsRan: boolean;
   victimTest: string;

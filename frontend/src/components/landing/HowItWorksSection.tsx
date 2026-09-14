@@ -26,20 +26,20 @@ const STEPS: Step[] = [
     badgeVariant: "amber",
     icon: <Search className="w-5 h-5 text-status-amber" />,
     description:
-      "When a test exhibits intermittency, FlakeProof reruns the test 30+ times to measure its baseline flakiness rate, isolate its timing signature, and confirm whether it is an order-dependent flake.",
+      "FlakeProof measures a baseline before proposing a repair. The recorded marine-api case ran 20 baseline checks across four fixed Surefire orders and exposed an order-dependent failure.",
     features: [
-      "Automated baseline execution (30+ iterations)",
+      "Baseline measured before any patch is evaluated",
       "Strict scope: order-dependent flaky tests only",
-      "Cryptographic run ID logged to persistent SQLite database",
+      "Runs, failures, and order labels persisted to SQLite",
     ],
     codeSnippet: {
       filename: "flakeproof-intake.log",
       code: [
-        "// SQLite Audit ID: sqlite_run_0x8f2a9d41",
-        "Target: PositionProviderTest.testGLLSentence()",
-        "Baseline iterations: 30 runs executed",
-        "Pass: 13 | Fail: 17 | Flakiness rate: 56.7%",
-        "Signature: Intermittent failure under order permutations",
+        "// Recorded SQLite evidence: attempt #5",
+        "Target: AISMessageFactoryTest#testCreate",
+        "Baseline: 20 controlled runs",
+        "Pass: 13 | Fail: 7 | Failure rate: 35%",
+        "Reverse alphabetical: 0/5 passed",
         "-> Dispatched to Diagnosis Swarm on Amazon Bedrock",
       ],
     },
@@ -51,19 +51,19 @@ const STEPS: Step[] = [
     badgeVariant: "teal",
     icon: <Bot className="w-5 h-5 text-status-teal" />,
     description:
-      "A swarm of 4 specialist agents (Triage, Order, Async, and Resource) built with Strands Agents hands the case between them to isolate the minimal polluter-victim test pair and identify the root cause.",
+      "A Strands Swarm provides Triage, Order, Async, and Resource specialists. They can hand work to one another while recording hypotheses and tool calls for review.",
     features: [
-      "Triage Specialist: analyzes stack traces and framework boundaries",
-      "Order Specialist: bisects test order sequences to find polluter",
-      "Async & Resource Specialists: trace thread pools and singleton leaks",
+      "Triage Specialist: reads failures and framework boundaries",
+      "Order Specialist: investigates test-order dependence",
+      "Async & Resource Specialists: investigate races and shared resources",
     ],
     codeSnippet: {
       filename: "strands-agent-swarm.diag",
       code: [
-        "Triage: Classified order-dependent singleton leak",
-        "Order: Bisected minimal pair (SentenceFactoryTest -> PositionProviderTest)",
-        "Resource: Isolated singleton leak in SentenceFactory.getInstance()",
-        "Async: Verified zero unclosed worker threads or countdown latches",
+        "Triage: run_pair isolated the polluting method",
+        "Diagnosis: order-dependent shared-factory state",
+        "Repair: proposed a reset at the polluter boundary",
+        "Recorded agent run: repair passed 5/5 before later re-judging",
         "-> Diagnosis synthesized; dispatched to Repair Agent",
       ],
     },
@@ -79,12 +79,12 @@ const STEPS: Step[] = [
     features: [
       "Synthesizes teardown reset hooks (@After / @AfterEach)",
       "Generates multiple candidate strategies for deterministic evaluation",
-      "All candidate patches hashed and logged to SQLite",
+      "All candidate patches and their verdicts logged to SQLite",
     ],
     codeSnippet: {
       filename: "candidate-patches.patch",
       code: [
-        "Candidate 1: Restores parser with wrong class (GGASentenceParser)",
+        "Candidate 1: Re-registers VDM after the custom-parser test",
         "Candidate 2: Annotates polluter test with @Ignore",
         "Candidate 3: Adds @After teardown resetting SentenceFactory singleton",
         "// Sending all 3 candidates to the Deterministic Gate...",
@@ -94,22 +94,22 @@ const STEPS: Step[] = [
   {
     stepNumber: "04",
     title: "Deterministic Two-Blade Gate",
-    badgeText: "Zero AI Inside (Strict Code)",
+    badgeText: "Deterministic Approval",
     badgeVariant: "navy",
     icon: <ShieldCheck className="w-5 h-5 text-navy" />,
     description:
-      "No AI is trusted to verify the fix. A purely deterministic two-blade gate judges each candidate twice: Blade 1 tests 200 random order permutations (100% must pass). Blade 2 inspects the AST for band-aids and refuses them even if all runs pass.",
+      "The gate is the final approval authority. Blade 1 runs a fixed rotation of Surefire orders and requires every rerun to pass. Blade 2 deterministically scans the diff for band-aid patterns. A model judge can add a refusal, never approve a patch.",
     features: [
-      "Blade 1: Reruns test 200 times across randomized test orders (all must pass)",
-      "Blade 2: AST scan refuses sleep, retry, @Ignore, pinned order, weakened assertions",
+      "Blade 1: Reruns across alphabetical, reverse alphabetical, random, and filesystem orders",
+      "Blade 2: Diff scan refuses sleep, retry, @Ignore, pinned order, weakened assertions",
       "Verdicts: VERIFIED, REFUSED_UNPROVEN, or REFUSED_BANDAID",
     ],
     codeSnippet: {
       filename: "two-blade-gate.eval",
       code: [
-        "[Candidate 1]: Blade 1: 13/30 runs passed. -> REFUSED_UNPROVEN",
-        "[Candidate 2]: Blade 1: 200/200 passed. Blade 2: AST caught @Ignore! -> REFUSED_BANDAID",
-        "[Candidate 3]: Blade 1: 200/200 passed. Blade 2: Clean AST (0 masks). -> VERIFIED",
+        "[Candidate 1]: Blade 1: 121/200 passed. -> REFUSED_UNPROVEN",
+        "[Candidate 2]: Blade 1: 200/200 passed. Diff scan caught @Ignore -> REFUSED_BANDAID",
+        "[Candidate 3]: Blade 1: 200/200 passed. Diff scan clean -> VERIFIED",
         "// Gate policy: Only VERIFIED fixes proceed to PR Agent",
       ],
     },
@@ -121,20 +121,20 @@ const STEPS: Step[] = [
     badgeVariant: "teal",
     icon: <Sparkles className="w-5 h-5 text-status-teal" />,
     description:
-      "Only a verified patch reaches the PR agent, which opens a GitHub pull request backed by cryptographic SQLite evidence (the 200 green runs and clean AST scan). Unproven or band-aid patches are permanently refused with the offending reason.",
+      "Only a verified patch can reach the PR agent. Its pull request includes the recorded rerun and scan evidence; unproven and band-aid patches are refused with their reason.",
     features: [
-      "Zero developer interruption required",
-      "Cryptographic SQLite audit record of every run and decision",
-      "Pull request contains mathematical proof of order-invariance",
+      "The graph cannot route around a non-VERIFIED verdict",
+      "SQLite records every run, candidate, and decision",
+      "Pull request #1 links the recorded evidence",
     ],
     codeSnippet: {
-      filename: "GitHub PR #142 - marine-api",
+      filename: "GitHub PR #1 - marine-api fork",
       code: [
-        "Title: Fix order-dependent flake in PositionProviderTest via singleton reset",
+        "Title: Fix order-dependent AIS test flake via SentenceFactory reset",
         "Evidence:",
-        "- Blade 1: 200/200 randomized order replays passed (0 flakes)",
-        "- Blade 2: AST scan verified zero band-aids (@Ignore, sleep, retry)",
-        "- SQLite Audit: sqlite_run_0x8f2a9d41 (Hash: 0x3f7a...9d21)",
+        "- Blade 1: 200/200 controlled reruns passed",
+        "- Blade 2: deterministic diff scan found no band-aids",
+        "- SQLite evidence: recorded attempt #5",
       ],
     },
   },
@@ -220,7 +220,7 @@ export const HowItWorksSection: React.FC = () => {
 
                       <div className="p-3.5 space-y-1 overflow-x-auto text-[11px] leading-relaxed">
                         {step.codeSnippet.code.map((line, lIdx) => {
-                          const isSuccess = line.includes("VERIFIED") || line.includes("PASS") || line.includes("PR #142");
+                          const isSuccess = line.includes("VERIFIED") || line.includes("PASS") || line.includes("PR #1");
                           const isRefused = line.includes("REFUSED") || line.includes("Fail") || line.includes("corrupted");
                           const isComment = line.startsWith("//");
 

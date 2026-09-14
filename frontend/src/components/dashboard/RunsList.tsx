@@ -25,6 +25,7 @@ function author(t: FlakyTestCase): string {
 
 function Outcome({ test }: { test: FlakyTestCase }) {
   if (test.status === "RUNNING") return <span className="text-status-teal">In progress: {STAGE_TEXT[test.stage]}</span>;
+  if (test.status === "INTERRUPTED") return <span className="text-foreground/60">Interrupted — excluded from proof</span>;
   if (test.status === "FAILED") return <span className="text-foreground/60">Stopped before finishing</span>;
   if (test.prUrl) {
     return (
@@ -45,7 +46,7 @@ function Outcome({ test }: { test: FlakyTestCase }) {
 }
 
 export const RunsList: React.FC<RunsListProps> = ({ testCases, onOpen }) => {
-  const [viewMode, setViewMode] = useState<"branch" | "table">("branch");
+  const [viewMode, setViewMode] = useState<"branch" | "table">("table");
   const rows = [...testCases].sort((a, b) => b.attemptId - a.attemptId);
 
   return (
@@ -54,10 +55,10 @@ export const RunsList: React.FC<RunsListProps> = ({ testCases, onOpen }) => {
         <div>
           <h2 id="runs-heading" className="text-base font-semibold text-foreground flex items-center gap-2">
             <GitBranch className="w-4 h-4 text-navy" />
-            <span>Runs &amp; Repair Branches</span>
+            <span>Runs &amp; Evidence Paths</span>
           </h2>
           <p className="text-xs text-foreground/60 mt-0.5">
-            Visual Git branch tree of flaky test baselines, candidate patches, and proven pull request merges
+            Visual evidence paths from a failing baseline through candidate evaluation and a verified pull request
           </p>
         </div>
 
@@ -73,7 +74,7 @@ export const RunsList: React.FC<RunsListProps> = ({ testCases, onOpen }) => {
             }`}
           >
             <GitBranch className="w-3.5 h-3.5" />
-            <span>Git Branch View</span>
+            <span>Evidence Path View</span>
           </button>
           <button
             type="button"

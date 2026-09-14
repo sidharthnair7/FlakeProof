@@ -18,25 +18,25 @@ const STAGES: StageInfo[] = [
     id: "intake",
     label: "1. Intake Baseline",
     badgeVariant: "amber",
-    detail: "Reruns PositionProviderTest 30 times. Baseline flakiness measured at 56.7% across order permutations.",
+    detail: "Measures AISMessageFactoryTest#testCreate before any patch: 13 of 20 recorded baseline runs passed.",
   },
   {
     id: "diagnosis",
     label: "2. Swarm Diagnosis",
     badgeVariant: "amber",
-    detail: "4-agent swarm on Amazon Nova 2 Lite bisects order sequence; isolates SentenceFactory singleton leak.",
+    detail: "A Strands specialist swarm investigates the shared SentenceFactory state and records its work.",
   },
   {
     id: "gate",
     label: "3. Two-Blade Gate",
     badgeVariant: "neutral",
-    detail: "Zero AI. Blade 1 reruns 200 order permutations. Blade 2 scans AST for band-aids (@Ignore, sleep, retry).",
+    detail: "The deterministic gate reruns patches across fixed orders and scans diffs for band-aids.",
   },
   {
     id: "verdict",
     label: "4. Verdict & PR",
     badgeVariant: "teal",
-    detail: "VERIFIED teardown reset passes all 200 runs + clean AST. PR #142 opened with evidence logged to SQLite.",
+    detail: "The verified @After reset passed 200/200 reruns with a clean deterministic diff scan. PR #1 carries the evidence.",
   },
 ];
 
@@ -64,7 +64,7 @@ export const LivePreviewSnippet: React.FC = () => {
               Watch an order-dependent flake move through the Two-Blade Gate
             </h2>
             <p className="text-sm text-foreground/70 mt-1 max-w-xl">
-              FlakeProof cards advance across pipeline stages as agents bisect permutations, synthesize patches, and submit to the deterministic gate.
+              This interactive walkthrough uses the recorded marine-api case; the dashboard shows the live SQLite record when its API is available.
             </p>
           </div>
 
@@ -145,13 +145,13 @@ export const LivePreviewSnippet: React.FC = () => {
                             : "marine-api Java Flake"}
                         </Badge>
                         <span className="text-[10px] font-mono text-foreground/50">
-                          sqlite_0x8f2a
+                          attempt #5
                         </span>
                       </div>
 
                       <div className="space-y-1">
                         <div className="text-xs font-mono font-medium text-foreground truncate">
-                          PositionProviderTest.testGLLSentence()
+                          AISMessageFactoryTest#testCreate
                         </div>
                         <p className="text-[11px] text-foreground/70 line-clamp-2 leading-relaxed">
                           {stage.detail}
@@ -165,10 +165,10 @@ export const LivePreviewSnippet: React.FC = () => {
                           ) : (
                             <ShieldCheck className="w-3 h-3 text-navy" />
                           )}
-                          {stage.id === "verdict" ? "PR #142 Opened" : "Polluter: SentenceFactoryTest"}
+                          {stage.id === "verdict" ? "PR #1 opened" : "Polluter: SentenceFactoryTest"}
                         </span>
                         <span className="text-status-teal font-medium">
-                          {stage.id === "verdict" ? "100% Proven" : "56.7% Flake"}
+                          {stage.id === "verdict" ? "200/200 verified" : "13/20 baseline"}
                         </span>
                       </div>
                     </motion.div>

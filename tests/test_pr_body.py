@@ -54,6 +54,11 @@ class EvidenceBody(unittest.TestCase):
         self.assertIn("no confidence bound is stated", body)
         self.assertNotIn("% at 95%", body)
 
+    def test_java_annotations_do_not_mention_github_users(self):
+        body = github.render_pr_body(ATTEMPT, FIX, "An @After reset removes the leak. Mail a@b.com.", self.runs, [])
+        self.assertIn("An `@After` reset", body)
+        self.assertIn("a@b.com", body)
+
     def test_bound_is_rounded_up(self):
         self.assertEqual(github.bound_percent(50), "6%")
         self.assertEqual(github.bound_percent(48), "6.3%")

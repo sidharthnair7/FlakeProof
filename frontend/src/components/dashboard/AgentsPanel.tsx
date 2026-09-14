@@ -7,6 +7,17 @@ interface AgentsPanelProps {
   onOpen: (attemptId: number) => void;
 }
 
+const SINGULAR: Record<string, string> = {
+  hypotheses: "hypothesis",
+  diagnoses: "diagnosis",
+  candidates: "candidate",
+  "PR calls": "PR call",
+  "tool calls": "tool call",
+  "JVM runs": "JVM run",
+};
+
+const count = (value: number, label: string) => `${value} ${value === 1 ? (SINGULAR[label] ?? label) : label}`;
+
 /** Only the agents that did something in the run, so nothing on screen is decoration. */
 export const AgentsPanel: React.FC<AgentsPanelProps> = ({ agents, attemptId, onOpen }) => {
   if (attemptId === null || agents.length === 0) return null;
@@ -44,7 +55,7 @@ export const AgentsPanel: React.FC<AgentsPanelProps> = ({ agents, attemptId, onO
             </div>
             <div className="text-sm text-foreground/70 sm:text-right">
               <p>
-                {a.activity.value} {a.activity.label}, {a.output.value} {a.output.label}
+                {count(a.activity.value, a.activity.label)}, {count(a.output.value, a.output.label)}
               </p>
               <p className="max-w-[20rem] truncate font-mono text-xs text-foreground/50" title={a.lastAction}>
                 Last: {a.id === "gate" ? a.lastAction : a.lastAction.split(" ")[0]}
