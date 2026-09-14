@@ -13,6 +13,7 @@ Tables
   gate_checks "Try the gate" submissions from the dashboard, CLI or AgentCore
 """
 import json
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -293,26 +294,52 @@ def runs_for(conn, attempt_id: int, candidate_id: int | None = None, phase: str 
     return rows(conn, sql, params)
 
 
-def _redact(text: str) -> str:
-    """Paths on this machine become repository-relative (or ~), in any of the spellings the
-    events hold: plain, forward slashes, backslashes doubled by JSON, or doubled twice when a
-    tool result carries JSON inside JSON. Longest spelling first."""
-    for base, spelled_as in ((ROOT, ""), (Path.home(), "~")):
-        raw = str(base).replace("\\", "/")
-        for sep in ("\\\\\\\\", "\\\\", "\\", "/"):
+_SEPARATORS = ("\\" * 8, "\\" * 4, "\\" * 2, "\\", "/")   # JSON inside JSON doubles backslashes each time
+_USER_HOME = re.compile(r"(?i)(?:[a-z]:(?:\\+|/)+Users|/home)(?:\\+|/)+[^\\/\"'\s]+")
+_RECORDED_ROOT = re.compile(r"^(.*?)[\\/]+workdir[\\/]")
+
+
+def _recorded_roots(value, found=None) -> set[str]:
+    """Project roots as they were on the machine that recorded the runs: every attempt stores the
+    path of its cloned target, which lives under <root>/workdir/."""
+    found = set() if found is None else found
+    if isinstance(value, dict):
+        repo_path = value.get("repo_path")
+        if isinstance(repo_path, str):
+            match = _RECORDED_ROOT.match(repo_path)
+            if match:
+                found.add(match.group(1))
+        for v in value.values():
+            _recorded_roots(v, found)
+    elif isinstance(value, list):
+        for v in value:
+            _recorded_roots(v, found)
+    return found
+
+
+def _redact(text: str, roots=()) -> str:
+    """Paths become repository-relative (or ~), whichever machine recorded them and whichever
+    spelling the events hold: plain, forward slashes, or backslashes doubled by JSON. The recorded
+    roots come from the attempts themselves, so a deployment on another machine redacts the same."""
+    bases = [(root, "") for root in roots] + [(str(ROOT), ""), (str(Path.home()), "~")]
+    for base, spelled_as in bases:
+        raw = base.replace("\\", "/")
+        for sep in _SEPARATORS:
             path = raw.replace("/", sep)
             text = text.replace(path + sep, f"{spelled_as}{sep}" if spelled_as else "")
             text = text.replace(path, spelled_as or ".")
-    return text
+    return _USER_HOME.sub("~", text)
 
 
-def _public(value):
-    """The replay document is what a public deployment serves, so local paths never reach it."""
+def _public(value, roots=None):
+    """What a public deployment serves: no repo_path field, and no local paths in any string."""
+    if roots is None:
+        roots = _recorded_roots(value)
     if isinstance(value, dict):
-        return {k: _public(v) for k, v in value.items() if k != "repo_path"}
+        return {k: _public(v, roots) for k, v in value.items() if k != "repo_path"}
     if isinstance(value, list):
-        return [_public(v) for v in value]
-    return _redact(value) if isinstance(value, str) else value
+        return [_public(v, roots) for v in value]
+    return _redact(value, roots) if isinstance(value, str) else value
 
 
 def replay(conn) -> dict:

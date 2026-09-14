@@ -97,6 +97,29 @@ class Database(unittest.TestCase):
                              home.replace("\\", "\\\\\\\\")):
                 self.assertNotIn(spelling, detail)
 
+    def test_replay_redacts_paths_recorded_on_another_machine(self):
+        """A deployment serves runs recorded elsewhere: the recorded root comes from repo_path."""
+        root = r"D:\Users\someone\proj"
+        db.init(self.path)
+        conn = db.connect(self.path)
+        try:
+            aid = db.insert_attempt(conn, "com.example.VictimTest#testReads",
+                                    repo_path=root + r"\workdir\repo")
+            db.log_event(conn, aid, "pr", "github", f"dry run: PR body saved to {root}\\data\\pr-bodies\\attempt-1.md")
+            db.log_event(conn, aid, "tool_result", "synthesizer",
+                         {"result": json.dumps({"error": f"No such file: '{root}\\workdir\\repo\\X.java'"})})
+            db.log_event(conn, aid, "info", "intake", "cloned to /home/other/proj/workdir/repo")
+            data = db.replay(conn)
+            single = db._public(db.get_attempt(conn, aid))
+        finally:
+            conn.close()
+
+        blob = json.dumps(data) + json.dumps(single)
+        for leaked in ("someone", "D:", "/home/other"):
+            self.assertNotIn(leaked, blob)
+        self.assertIn("data\\\\pr-bodies\\\\attempt-1.md", blob)
+        self.assertIn("workdir", blob)
+
 
 if __name__ == "__main__":
     unittest.main()
