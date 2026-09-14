@@ -2,7 +2,6 @@ import React from "react";
 
 interface DiffBlockProps {
   diff: string;
-  /** An added line to highlight, e.g. the offending line of a band-aid. */
   highlight?: string;
 }
 

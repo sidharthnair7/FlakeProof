@@ -6,7 +6,6 @@ interface NeedsYouProps {
   onOpen: (attemptId: number) => void;
 }
 
-/** The only thing that asks for a person: a pull request whose fix the gate proved. */
 export const NeedsYou: React.FC<NeedsYouProps> = ({ testCases, onOpen }) => {
   const prs = testCases
     .filter((t) => t.prUrl && t.verdict === "VERIFIED")

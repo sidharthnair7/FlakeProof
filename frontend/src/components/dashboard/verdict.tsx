@@ -10,7 +10,6 @@ const TEXT: Record<Verdict, string> = {
   PENDING: "Pending",
 };
 
-// One colour per verdict, and only for verdicts.
 const STYLE: Record<Verdict, string> = {
   VERIFIED: "bg-teal-50 text-teal-800 ring-teal-600/20",
   REFUSED_BANDAID: "bg-red-50 text-red-800 ring-red-600/20",

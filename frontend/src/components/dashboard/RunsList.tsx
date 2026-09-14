@@ -62,7 +62,6 @@ export const RunsList: React.FC<RunsListProps> = ({ testCases, onOpen }) => {
           </p>
         </div>
 
-        {/* View Mode Toggle */}
         <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-surface shadow-xs">
           <button
             type="button"

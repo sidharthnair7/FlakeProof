@@ -18,7 +18,6 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="relative min-h-screen bg-[#FAFAF9] text-foreground overflow-x-hidden">
-      {/* Prismatic WebGL Wave Background matching the Landing Page Prism */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-40">
         <ColorBends
           colors={["#0D9488", "#06B6D4", "#3B82F6", "#6366F1", "#A855F7", "#EC4899", "#F59E0B", "#10B981"]}
@@ -35,7 +34,6 @@ export const DashboardPage: React.FC = () => {
           bandWidth={5.5}
           transparent={true}
         />
-        {/* Soft, calming ambient wash ensuring cards and metrics remain the focal point */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#FAFAF9]/20 to-[#FAFAF9]/50 pointer-events-none" />
       </div>
 

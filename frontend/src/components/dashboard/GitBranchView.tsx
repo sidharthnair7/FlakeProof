@@ -44,7 +44,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
             key={test.id}
             className="rounded-2xl border border-border/80 bg-surface/90 backdrop-blur-md shadow-card overflow-hidden transition-all duration-200 hover:shadow-card-hover"
           >
-            {/* Git Repository & Attempt Header */}
             <div className="px-5 py-3.5 bg-surface-subtle/80 border-b border-border/80 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-lg bg-navy text-white flex items-center justify-center">
@@ -98,11 +97,8 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
               </div>
             </div>
 
-            {/* Git Graph Visual Area */}
             <div className="p-5 sm:p-6 space-y-6">
-              {/* 1. Trunk Commit: Failing Baseline */}
               <div className="relative flex items-start gap-4">
-                {/* Visual Branch Spine Node */}
                 <div className="flex flex-col items-center shrink-0">
                   <div className="w-6 h-6 rounded-full bg-navy text-white flex items-center justify-center shadow-xs ring-4 ring-navy-50">
                     <GitCommit className="w-3.5 h-3.5 text-teal-300" />
@@ -110,7 +106,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                   <div className="w-0.5 h-full bg-navy/20 min-h-[48px] my-1" />
                 </div>
 
-                {/* Commit Content */}
                 <div className="flex-1 pb-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-navy-50 text-navy border border-navy-200">
@@ -148,7 +143,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                 </div>
               </div>
 
-              {/* 2. Diverging Branches: Candidate Patches */}
               <div className="space-y-4 pl-3 sm:pl-4">
                 <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-foreground/50">
                   <GitBranch className="w-3.5 h-3.5 text-navy" />
@@ -163,7 +157,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
 
                   return (
                     <div key={patch.id} className="relative flex items-start gap-4">
-                      {/* Branch Node Indicator with SVG Curve */}
                       <div className="flex flex-col items-center shrink-0 pt-1">
                         <div
                           className={`w-5 h-5 rounded-full flex items-center justify-center text-white shadow-xs ${
@@ -187,7 +180,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                         )}
                       </div>
 
-                      {/* Branch Card */}
                       <div
                         className={`flex-1 p-4 rounded-xl border transition-all ${
                           isVerified
@@ -237,9 +229,7 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                           </div>
                         </div>
 
-                        {/* Gate Evaluation Metrics */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 text-xs">
-                          {/* Blade 1 */}
                           <div className="p-2.5 rounded-lg bg-white/80 border border-border/80 space-y-1">
                             <div className="flex items-center justify-between font-mono text-[11px]">
                               <span className="font-bold flex items-center gap-1 text-foreground">
@@ -269,7 +259,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                             )}
                           </div>
 
-                          {/* Blade 2 */}
                           <div className="p-2.5 rounded-lg bg-white/80 border border-border/80 space-y-1">
                             <div className="flex items-center justify-between font-mono text-[11px]">
                               <span className="font-bold flex items-center gap-1 text-foreground">
@@ -297,7 +286,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                           </div>
                         </div>
 
-                        {/* Expandable Unified Diff Viewer */}
                         {isDiffOpen && patch.diff && (
                           <div className="mt-3 pt-3 border-t border-black/5">
                             <DiffBlock diff={patch.diff} />
@@ -309,7 +297,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                 })}
               </div>
 
-              {/* 3. Merge Commit back to Main (if verified fix exists) */}
               {test.status === "INTERRUPTED" ? (
                 <div className="relative flex items-start gap-4 pt-1">
                   <div className="flex flex-col items-center shrink-0">
@@ -362,7 +349,6 @@ export const GitBranchView: React.FC<GitBranchViewProps> = ({ testCases, onOpen 
                   </div>
                 </div>
               ) : (
-                /* Unmerged / Refused State */
                 <div className="relative flex items-start gap-4 pt-1">
                   <div className="flex flex-col items-center shrink-0">
                     <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center ring-4 ring-slate-100">

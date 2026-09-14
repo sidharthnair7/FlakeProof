@@ -33,7 +33,6 @@ export const OrderDependencyDemo: React.FC = () => {
         </div>
 
         <div className="max-w-4xl mx-auto bg-surface rounded-2xl border border-border shadow-card overflow-hidden">
-          {/* Controls Bar */}
           <div className="p-4 bg-surface-subtle border-b border-border flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="text-xs font-mono font-medium text-foreground/70">
@@ -56,10 +55,8 @@ export const OrderDependencyDemo: React.FC = () => {
             </div>
           </div>
 
-          {/* Side by side test cards */}
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Test Slot 1 */}
               <div
                 className={`p-4 rounded-xl border transition-all ${
                   isFailingOrder
@@ -99,7 +96,6 @@ export const OrderDependencyDemo: React.FC = () => {
                 </div>
               </div>
 
-              {/* Test Slot 2 */}
               <div
                 className={`p-4 rounded-xl border transition-all ${
                   isFailingOrder
@@ -146,7 +142,6 @@ export const OrderDependencyDemo: React.FC = () => {
               </div>
             </div>
 
-            {/* FlakeProof Resolution Explainer */}
             <div className="p-4 rounded-xl bg-surface-subtle border border-border flex items-start gap-3">
               <div className="p-2 rounded-lg bg-status-teal-light text-status-teal shrink-0">
                 <Sparkles className="w-4 h-4" />

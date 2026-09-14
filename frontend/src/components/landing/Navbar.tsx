@@ -36,7 +36,6 @@ export const Navbar: React.FC = () => {
     return () => window.cancelAnimationFrame(frame);
   }, [location.hash, location.pathname]);
 
-  // Global keyboard shortcut: Cmd+D / Ctrl+D opens Agent Console Dashboard
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "d" || e.key === "D")) {
@@ -55,7 +54,6 @@ export const Navbar: React.FC = () => {
   return (
     <nav className="fixed top-4 left-0 right-0 z-50 flex items-center justify-center px-4 pointer-events-none">
       <div className="flex items-center gap-3 pointer-events-auto">
-        {/* Animated React Bits PillNav with FlakeProof Branding */}
         <PillNav
           logo="/flakeproof-logo.svg"
           logoAlt="FlakeProof"
@@ -69,7 +67,6 @@ export const Navbar: React.FC = () => {
           initialLoadAnimation={true}
         />
 
-        {/* Live action pill */}
         <div className="hidden lg:flex items-center gap-2">
           <Link
             to="/dashboard"

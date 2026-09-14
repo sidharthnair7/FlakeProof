@@ -28,7 +28,6 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden border-b border-border/80 bg-[#FAFAF9]">
-      {/* Animated Raymarched Prism Background */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-90">
         <Prism
           animationType="rotate"
@@ -44,20 +43,16 @@ export const HeroSection: React.FC = () => {
           transparent={true}
           lightMode={true}
         />
-        {/* Soft bottom vignette to gently merge with the section border */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#FAFAF9]/85 pointer-events-none" />
       </div>
 
-      {/* High-Precision Subtle Grid Overlay with Smooth Radial Mask */}
       <div
         className="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none [mask-image:radial-gradient(ellipse_75%_50%_at_50%_35%,#000_65%,transparent_100%)]"
         aria-hidden="true"
       />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero Header */}
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto space-y-6">
-          {/* Stack pill */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -75,7 +70,6 @@ export const HeroSection: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Headline */}
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
@@ -90,7 +84,6 @@ export const HeroSection: React.FC = () => {
             </h1>
           </motion.div>
 
-          {/* Subheading */}
           <motion.p
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
@@ -100,7 +93,6 @@ export const HeroSection: React.FC = () => {
             Existing repair tools generate masks: a <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">sleep</code>, a <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">retry</code>, or <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">@Ignore</code> turns the test green without fixing the cause. FlakeProof uses a 4-agent swarm on Amazon Nova 2 Lite to investigate root causes, while a <strong>deterministic Two-Blade Gate has final approval authority</strong> over band-aids and unproven patches.
           </motion.p>
 
-          {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
@@ -127,7 +119,6 @@ export const HeroSection: React.FC = () => {
             </a>
           </motion.div>
 
-          {/* Tech Badges */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -151,7 +142,6 @@ export const HeroSection: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* Centerpiece: Real-world marine-api Demo with 3 Candidate Patches */}
         <motion.div
           id="marine-api-demo"
           initial={{ opacity: 0, y: 30 }}
@@ -159,7 +149,6 @@ export const HeroSection: React.FC = () => {
           transition={{ duration: 0.7, delay: 0.65, ease: "easeOut" }}
           className="mt-14 max-w-5xl mx-auto scroll-mt-28 rounded-2xl border border-slate-200 shadow-[0_20px_50px_-12px_rgba(11,19,43,0.12)] overflow-hidden bg-white"
         >
-          {/* Terminal Titlebar */}
           <div className="px-5 py-3.5 bg-slate-50/90 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="flex gap-1.5">
@@ -179,7 +168,6 @@ export const HeroSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Ground Truth Flake Explanation Banner */}
           <div className="p-4 bg-amber-50/60 border-b border-amber-200/80 flex items-start gap-3 text-xs">
             <ShieldAlert className="w-4 h-4 text-status-amber shrink-0 mt-0.5" />
             <div className="space-y-1">
@@ -192,7 +180,6 @@ export const HeroSection: React.FC = () => {
             </div>
           </div>
 
-          {/* 3 Candidate Patches Selector Tabs */}
           <div className="px-5 pt-4 pb-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
               Evaluate Candidate Patches Through Two-Blade Gate:
@@ -228,7 +215,6 @@ export const HeroSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Active Patch Gate Evaluation */}
           <div className="p-5 sm:p-6 bg-white min-h-[300px]">
             <AnimatePresence mode="wait">
               <motion.div
@@ -239,14 +225,12 @@ export const HeroSection: React.FC = () => {
                 transition={{ duration: 0.2 }}
                 className="space-y-5"
               >
-                {/* Patch Header & Verdict Stamp */}
                 <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-slate-100">
                   <div className="space-y-1 max-w-xl">
                     <h3 className="text-base font-bold text-slate-900">{activePatch.label}</h3>
                     <p className="text-xs text-slate-600 leading-relaxed">{activePatch.approach}</p>
                   </div>
 
-                  {/* Verdict Stamp */}
                   <div className="flex flex-col items-end">
                     <span className="text-[10px] font-mono uppercase text-slate-400 font-bold mb-1">
                       Gate Verdict
@@ -272,9 +256,7 @@ export const HeroSection: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Two-Blade Evaluation Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Blade 1: controlled reruns */}
                   <div
                     className={`p-4 rounded-xl border space-y-2 ${
                       activePatch.blade1Runs.passed
@@ -317,7 +299,6 @@ export const HeroSection: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Blade 2: deterministic band-aid diff scan */}
                   <div
                     className={`p-4 rounded-xl border space-y-2 ${
                       activePatch.blade2Scan.passed
@@ -352,7 +333,6 @@ export const HeroSection: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Candidate Patch Diff Snippet */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs font-mono text-slate-500">
                     <span>Proposed Unified Diff:</span>
@@ -396,7 +376,6 @@ export const HeroSection: React.FC = () => {
             </AnimatePresence>
           </div>
 
-          {/* Telemetry Footer */}
           <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-slate-600">
             <div className="flex items-center gap-4">
               <span>Candidates: planted by hand (run 5) · Judge: Nova 2 Lite</span>

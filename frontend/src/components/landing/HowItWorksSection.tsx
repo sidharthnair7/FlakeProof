@@ -144,7 +144,6 @@ export const HowItWorksSection: React.FC = () => {
   return (
     <section id="how-it-works" className="py-20 bg-surface border-b border-border/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Heading */}
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
           <div className="flex items-center justify-center gap-2">
             <Badge variant="teal" size="sm">
@@ -162,7 +161,6 @@ export const HowItWorksSection: React.FC = () => {
           </p>
         </div>
 
-        {/* 5 Step Cards with Motion Scroll Reveal */}
         <div className="space-y-6">
           {STEPS.map((step, idx) => (
             <motion.div
@@ -176,7 +174,6 @@ export const HowItWorksSection: React.FC = () => {
             >
               <Card className="p-6 md:p-7 hover:border-navy-300 transition-all">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                  {/* Left Column: Details */}
                   <div className="lg:col-span-6 space-y-3">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl font-bold font-mono text-foreground/30">
@@ -205,7 +202,6 @@ export const HowItWorksSection: React.FC = () => {
                     </ul>
                   </div>
 
-                  {/* Right Column: Code Snippet */}
                   <div className="lg:col-span-6">
                     <div className="rounded-xl bg-navy text-white font-mono text-xs overflow-hidden border border-slate-700/60 shadow-lg">
                       <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">

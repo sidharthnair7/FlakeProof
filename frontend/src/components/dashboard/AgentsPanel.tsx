@@ -18,7 +18,6 @@ const SINGULAR: Record<string, string> = {
 
 const count = (value: number, label: string) => `${value} ${value === 1 ? (SINGULAR[label] ?? label) : label}`;
 
-/** Only the agents that did something in the run, so nothing on screen is decoration. */
 export const AgentsPanel: React.FC<AgentsPanelProps> = ({ agents, attemptId, onOpen }) => {
   if (attemptId === null || agents.length === 0) return null;
   const acted = agents.filter((a) => a.status === "running" || a.activity.value > 0);
