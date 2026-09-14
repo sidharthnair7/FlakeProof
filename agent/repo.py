@@ -25,6 +25,14 @@ def git(repo: Path, *args: str, check: bool = True) -> str:
     return p.stdout
 
 
+def git_bytes(repo: Path, *args: str) -> bytes:
+    """Run git and return stdout byte for byte, with no newline translation."""
+    p = subprocess.run(["git", *args], cwd=repo, capture_output=True, timeout=120)
+    if p.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)} failed: {p.stderr.decode('utf-8', 'replace').strip()}")
+    return p.stdout
+
+
 def head_sha(repo: Path) -> str:
     return git(repo, "rev-parse", "HEAD").strip()
 

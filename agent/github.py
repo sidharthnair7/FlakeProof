@@ -5,7 +5,8 @@ years ago, so a PR against upstream would be noise for the maintainer. On the us
 PR is public, permanent and clickable, and it carries the evidence in its body.
 
 Plain GitHub REST via httpx. No git push from the machine: the branch, the commit and the PR
-are created through the API, so the only credential needed is one fine-grained token.
+are created through the API, so the only credential needed is one fine-grained token, and the
+commit is attributed to that token's owner.
 """
 import base64
 import time
@@ -59,14 +60,23 @@ class GitHub:
         self._req("POST", f"/repos/{self.owner}/{self.repo}/git/refs",
                   json={"ref": f"refs/heads/{name}", "sha": sha})
 
-    def put_file(self, branch: str, path: str, content: str, message: str) -> None:
-        existing = self._req("GET", f"/repos/{self.owner}/{self.repo}/contents/{path}",
-                             params={"ref": branch})
-        body = {"message": message, "branch": branch,
-                "content": base64.b64encode(content.encode("utf-8")).decode("ascii")}
-        if existing and isinstance(existing, dict) and existing.get("sha"):
-            body["sha"] = existing["sha"]
-        self._req("PUT", f"/repos/{self.owner}/{self.repo}/contents/{path}", json=body)
+    def commit_files(self, branch: str, base_sha: str, files: dict[str, bytes], message: str) -> str:
+        """Point `branch` at one new commit on top of `base_sha` holding `files` byte for byte.
+
+        One commit per pull request. Running it again replaces that commit instead of stacking a
+        second one, so a corrected upload leaves a clean history."""
+        prefix = f"/repos/{self.owner}/{self.repo}/git"
+        base_commit = self._req("GET", f"{prefix}/commits/{base_sha}")
+        tree = []
+        for path, content in files.items():
+            blob = self._req("POST", f"{prefix}/blobs",
+                             json={"content": base64.b64encode(content).decode("ascii"), "encoding": "base64"})
+            tree.append({"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+        new_tree = self._req("POST", f"{prefix}/trees", json={"base_tree": base_commit["tree"]["sha"], "tree": tree})
+        commit = self._req("POST", f"{prefix}/commits",
+                           json={"message": message, "tree": new_tree["sha"], "parents": [base_sha]})
+        self._req("PATCH", f"{prefix}/refs/heads/{branch}", json={"sha": commit["sha"], "force": True})
+        return commit["sha"]
 
     def find_pr(self, head: str, base: str) -> str | None:
         prs = self._req("GET", f"/repos/{self.owner}/{self.repo}/pulls",
@@ -128,18 +138,30 @@ def render_pr_body(attempt: dict, candidate: dict, summary: str, baseline: dict,
     return "\n".join(lines)
 
 
-def _patched_files(ctx, diff_text: str) -> dict[str, str]:
-    """Apply the diff on a clean tree, read the resulting files, reset."""
+def _committable_bytes(repo: Path, rel_paths: list[str]) -> dict[str, bytes]:
+    """Each file exactly as `git commit` would store it: staged, then read back from the index.
+
+    Reading the working tree in Python text mode would turn CRLF into LF, and the pull request
+    would then rewrite every line of a CRLF file instead of changing only the patched lines."""
+    from agent import repo as repo_ops
+    files = {}
+    for rel in rel_paths:
+        repo_ops.git(repo, "add", "--", rel)
+        files[rel] = repo_ops.git_bytes(repo, "show", f":{rel}")
+    return files
+
+
+def _patched_files(ctx, diff_text: str) -> dict[str, bytes]:
+    """Apply the diff on a clean tree, capture the changed files byte for byte, reset."""
     from agent import repo as repo_ops
     repo_ops.reset_worktree(ctx.repo)
     ok, msg = repo_ops.apply_diff(ctx.repo, diff_text)
     if not ok:
         raise RuntimeError(f"verified patch no longer applies: {msg}")
-    files = {}
-    for rel in repo_ops.changed_files(ctx.repo):
-        files[rel] = repo_ops.read_file(ctx.repo, rel)
-    repo_ops.reset_worktree(ctx.repo)
-    return files
+    try:
+        return _committable_bytes(ctx.repo, repo_ops.changed_files(ctx.repo))
+    finally:
+        repo_ops.reset_worktree(ctx.repo)
 
 
 def open_pr_for_attempt(ctx, title: str, summary: str) -> tuple[str | None, Path]:
@@ -181,8 +203,8 @@ def open_pr_for_attempt(ctx, title: str, summary: str) -> tuple[str | None, Path
     head_branch = f"flakeproof/fix-{ctx.attempt_id}-{base_sha[:7]}"
     gh.ensure_branch(base_branch, base_sha)
     gh.ensure_branch(head_branch, base_sha)
-    for rel, content in _patched_files(ctx, cand["diff"]).items():
-        gh.put_file(head_branch, rel, content, f"{title}\n\nProposed by Flakeproof for {attempt['test_name']}")
+    gh.commit_files(head_branch, base_sha, _patched_files(ctx, cand["diff"]),
+                    f"{title}\n\nProposed by Flakeproof for {attempt['test_name']}")
     url = gh.create_pr(head_branch, base_branch, title, body)
 
     db.update(conn, "attempts", ctx.attempt_id, pr_url=url)

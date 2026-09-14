@@ -113,9 +113,8 @@ def cmd_pr(args) -> None:
         cand = db.rows(conn, "SELECT title, rationale FROM candidates WHERE id = ?",
                        (ctx.verified_candidate_id,))[0]
         url, body_path = github.open_pr_for_attempt(ctx, cand["title"], cand["rationale"] or cand["title"])
-        if url:
+        if url:   # open_pr_for_attempt has already printed the link
             db.update(conn, "attempts", args.attempt, error=None)
-            print(f"PR opened: {url}")
         elif args.dry_run:
             print(f"dry run: PR body saved to {body_path}")
         else:
