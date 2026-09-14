@@ -10,7 +10,7 @@ interface DashboardHeaderProps {
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ tally, lastUpdated, error, running }) => (
-  <header className="border-b border-border bg-surface">
+  <header className="border-b border-border/80 bg-surface/85 backdrop-blur-md sticky top-0 z-30 shadow-xs">
     <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
       <div className="flex items-center gap-6">
         <Link to="/" className="flex items-center gap-2 text-sm font-semibold text-foreground">
