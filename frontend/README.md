@@ -1,32 +1,32 @@
-# React + TypeScript + Vite
+# FlakeProof web UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React, Vite and Tailwind. It shows the runs FlakeProof recorded in `data/runs.db`, served by the FastAPI app in `dashboard/app.py`. There is no sample data: every number on screen comes from the API.
 
-Currently, two official plugins are available:
+## Run it
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+From the repository root, with the Python environment set up (see the main README):
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+python -m uvicorn dashboard.app:app --port 8000
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Open http://localhost:8000 for the landing page, or http://localhost:8000/dashboard.
+
+## Develop
+
+Keep the API running, then in a second terminal:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Vite serves the UI with hot reload and proxies `/api` to http://127.0.0.1:8000.
+
+## Where the data comes from
+
+`GET /api/replay` returns the tally and every attempt with its candidates, runs, hypotheses and agent events (`replay()` in `agent/db.py`). The UI polls it every 3 seconds, so a run in progress fills in live. `src/lib/replay.ts` maps it to the UI types in `src/lib/types.ts`.

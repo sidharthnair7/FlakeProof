@@ -5,9 +5,9 @@ import { Terminal } from "lucide-react";
 
 const NAV_ITEMS: PillNavItem[] = [
   { label: "Overview", href: "/" },
-  { label: "marine-api Demo", href: "/#marine-api-demo" },
-  { label: "Two-Blade Gate", href: "/#two-blade-gate" },
-  { label: "Live Dashboard", href: "/dashboard" },
+  { label: "Recorded Run", href: "/#marine-api-demo" },
+  { label: "How It Works", href: "/#how-it-works" },
+  { label: "Dashboard", href: "/dashboard" },
 ];
 
 export const Navbar: React.FC = () => {
@@ -16,10 +16,9 @@ export const Navbar: React.FC = () => {
   return (
     <nav className="fixed top-4 left-0 right-0 z-50 flex items-center justify-center px-4 pointer-events-none">
       <div className="flex items-center gap-3 pointer-events-auto">
-        {/* Animated React Bits PillNav with FlakeProof Branding */}
         <PillNav
-          logo="/reliant-logo.svg"
-          logoAlt="FlakeProof AWS Hackathon Agent"
+          logo="/flakeproof-logo.svg"
+          logoAlt="FlakeProof"
           items={NAV_ITEMS}
           activeHref={location.pathname}
           baseColor="#0B132B"
@@ -30,7 +29,6 @@ export const Navbar: React.FC = () => {
           initialLoadAnimation={true}
         />
 
-        {/* AWS Hackathon Live Action Pill */}
         <div className="hidden lg:flex items-center gap-2">
           <Link
             to="/dashboard"
@@ -42,9 +40,7 @@ export const Navbar: React.FC = () => {
             </span>
             <Terminal className="w-3.5 h-3.5 text-teal-300 ml-0.5" />
             <span>Agent Console</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-slate-300 ml-0.5">
-              ⌘D
-            </kbd>
+            <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-slate-300 ml-0.5">Ctrl+D</kbd>
           </Link>
         </div>
       </div>

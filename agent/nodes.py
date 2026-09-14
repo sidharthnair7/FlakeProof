@@ -131,7 +131,7 @@ def gate(_task: str = "") -> str:
         return "GATE_RESULT: REFUSED. No candidates were proposed."
 
     lines = []
-    diagnosis_text = _diagnosis_context(ctx)
+    judge_context = _judge_context(ctx)   # the test and its recipe, never the agents' conclusions
     for cand in pending:
         cid = cand["id"]
         ctx.log("gate", "gate", f"candidate #{cid} ({cand['source']}): {cand['title']}")
@@ -155,7 +155,7 @@ def gate(_task: str = "") -> str:
         db.update(conn, "candidates", cid, compiled=1)
 
         # Blade 2: real fix or mask? Deterministic scanner first, model second.
-        b2 = judge_patch(cand["diff"], context=diagnosis_text, use_model=model_available())
+        b2 = judge_patch(cand["diff"], context=judge_context, use_model=model_available())
         db.update(conn, "candidates", cid, blade2_verdict=b2.verdict, blade2_category=b2.category,
                   blade2_reason=b2.reason, blade2_line=b2.line, blade2_line_no=b2.line_no,
                   blade2_file=b2.file)

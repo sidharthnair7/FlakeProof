@@ -128,12 +128,8 @@ def cmd_findpolluter(args) -> None:
 def cmd_export(args) -> None:
     """Dump everything the dashboard needs, for a deployment box with no Maven or Java."""
     conn = db.connect()
-    out = {"tally": db.tally(conn), "attempts": []}
-    for a in db.list_attempts(conn):
-        full = db.get_attempt(conn, a["id"])
-        full["runs"] = db.runs_for(conn, a["id"])
-        out["attempts"].append(full)
-    out["gate_checks"] = db.rows(conn, "SELECT * FROM gate_checks ORDER BY id DESC LIMIT 100")
+    out = db.replay(conn)
+    conn.close()
     Path(args.out).write_text(json.dumps(out, indent=1, default=str), encoding="utf-8")
     print(f"wrote {args.out}: {len(out['attempts'])} attempts, {out['tally']['runs']} runs")
 

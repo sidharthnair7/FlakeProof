@@ -7,7 +7,7 @@ Built with **Strands Agents** on **Amazon Bedrock** (Amazon Nova 2 Lite) for the
 ![Built with Strands Agents](https://img.shields.io/badge/built%20with-Strands%20Agents-2563eb)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-Nova%202%20Lite-ff9900)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab)
-![Unit tests](https://img.shields.io/badge/unit%20tests-21%20passing-16a34a)
+![Unit tests](https://img.shields.io/badge/unit%20tests-23%20passing-16a34a)
 ![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)
 
 ---
@@ -20,6 +20,7 @@ Built with **Strands Agents** on **Amazon Bedrock** (Amazon Nova 2 Lite) for the
 - **Flakeproof is a Strands Agents graph where agents diagnose and write fixes, and a deterministic gate decides.** A fix is VERIFIED only if it passes every rerun under rotating test orders **and** contains no band-aid.
 - In our demo run, an `@Ignore` band-aid passed **30 of 30** reruns. **The gate refused it anyway** and named line 220.
 - In the agents' first full run, our own repair agent wrote a wrong fix that the model reviewer rated **95% likely to be real**. The gate refused that too.
+- After we fixed one tool, the agents found the polluting test with **a single experiment** and wrote a fix **the gate verified**.
 
 ![Flakeproof architecture](docs/architecture.png)
 
@@ -53,7 +54,7 @@ Engineering teams running Java test suites in CI, and specifically whoever is on
 
 **Blade 1: does it hold?** The test is rerun N times (default 200) with the polluting test pinned at method level, under rotating Surefire orders (alphabetical, reverse alphabetical, random, filesystem). Every run must pass. The harness reads the Surefire XML, never the Maven exit code, deletes stale reports before each run, and **counts a skipped test as a failure**.
 
-**Blade 2: is it a real fix or a mask?** A deterministic scanner checks the diff against 8 band-aid families: sleep, retry, ignore, timeout, order pinning, fork isolation, weakened assertions and swallowed failures. A band-aid judge agent (structured output) gives a second opinion and can add a refusal. **It cannot overrule a scanner hit.**
+**Blade 2: is it a real fix or a mask?** A deterministic scanner checks the diff against 8 band-aid families: sleep, retry, ignore, timeout, order pinning, fork isolation, weakened assertions and swallowed failures. A band-aid judge agent (structured output) gives a second opinion and can add a refusal. **It cannot overrule a scanner hit**, and it reads only the diff, the test and its reproduction scope, **never the agents' diagnosis**, so it stays an independent reviewer.
 
 **Verdicts:** `VERIFIED` (Blade 2 clean and every rerun passed), `REFUSED_BANDAID`, or `REFUSED_UNPROVEN`.
 
@@ -77,7 +78,7 @@ Engineering teams running Java test suites in CI, and specifically whoever is on
 
 **The test.** [marine-api](https://github.com/ktuukkan/marine-api), an open-source Java library for marine navigation data. `SentenceFactory` is a singleton holding a map from sentence type to parser. `SentenceFactoryTest#testRegisterParserWithAlternativeBeginChar` registers a test-double `VDMParser` over the real one, then unregisters it, which deletes the `"VDM"` entry entirely. The class resets the factory **before** each test but never **after**, so later test classes in the same JVM that parse an AIS `VDM` sentence fail with `Parser for type 'VDM' not found`. The maintainers fixed it in [PR #109](https://github.com/ktuukkan/marine-api/pull/109) with an `@After` reset. Flakeproof works on the commit just before that fix.
 
-**The candidates** (hand-written and labelled `planted`, in [`demo/candidates/`](demo/candidates)):
+**The planted candidates** (hand-written and labelled `planted`, in [`demo/candidates/`](demo/candidates)):
 
 1. **Restore the VDM parser at the end of the test.** Looks right, but `VDMParser` in that file is the test double, so it restores the wrong class.
 2. **`@Ignore` the polluting test.** Nothing dirties the singleton any more, so every rerun passes.
@@ -95,7 +96,7 @@ Engineering teams running Java test suites in CI, and specifically whoever is on
 
 The wrong-class patch failed every reverse-alphabetical run, the order where the polluter runs first. Wall clock: 7 min 24 s.
 
-**Run 2: the full agent pipeline, 5 reruns per candidate** (a smoke test of the agent path, not statistical evidence). Baseline: 3 of 4.
+**Run 2: the first full agent run, 5 reruns per candidate** (a smoke test of the agent path, not statistical evidence). Baseline: 3 of 4.
 
 | Candidate | Written by | Blade 1 | Blade 2 | Verdict |
 |---|---|---|---|---|
@@ -104,16 +105,26 @@ The wrong-class patch failed every reverse-alphabetical run, the order where the
 | `@Ignore` the polluting test | planted | 5 / 5 | BANDAID: `ignore`, line 220 | REFUSED_BANDAID |
 | `@After` reset (upstream fix) | planted | 5 / 5 | CLEAN | **VERIFIED** |
 
-The run took the verified path through the graph: `intake`, `diagnose`, `synthesize`, `repair`, `gate` and `open_pr`, with every agent on Amazon Nova 2 Lite. The PR writer called `open_pull_request` for the verified fix, which saved the pull request body (dry run, no GitHub token). Wall clock: 12 min 39 s. Across both runs: 134 JVM executions, 3.6 s each on average.
+What the agents did: the **triage agent**'s first experiment paired the right class, `SentenceFactoryTest`, but a whole-class pairing passes, because the class resets state before each test and only its last method leaves it dirty. Triage dropped the right suspect, ran 87 more pairings, and hit its 7-minute limit without handing off. The **synthesizer** got the category right and the root cause wrong (AIS fragment ordering). The **repair agent** patched production code to match. **The gate refused it.** Wall clock: 12 min 39 s.
 
-### What the agents actually did, and why the gate exists
+**Run 3: the refusal path, 5 reruns** (only the two planted patches that must be refused). Baseline: 2 of 4. The wrong-class restore was REFUSED_UNPROVEN at 3 / 5 and the `@Ignore` REFUSED_BANDAID at 5 / 5, so no candidate was verified: the `refuse` node printed the refusal statement and no pull request was opened. Wall clock: 1 min 30 s.
 
-- The **triage agent** ran 88 `run_pair` experiments, testing suspect classes one at a time, and hit its 7-minute limit without handing off.
-- The **synthesizer** got the category right (order-dependent) and the root cause wrong: it blamed AIS fragment ordering instead of the `SentenceFactory` singleton.
-- The **repair agent** patched production code to match that wrong diagnosis. The model reviewer rated the patch 95% likely to be a real fix.
-- **The gate refused it.** A reverse-alphabetical run failed, so there was no pull request for it.
+**Run 4: the agents after the fix, 5 reruns, no planted candidates.** Baseline: 2 of 4.
 
-The same run showed why the scanner outranks the model. The wrong-class patch was rated "95% real fix" by the model in run 1 and "90% band-aid" in run 2, after the model read the agents' wrong diagnosis. The scanner gave the same answer both times. **A model's opinion is not a safety mechanism. The rerun harness and the deterministic scanner are.**
+| Candidate | Written by | Blade 1 | Blade 2 | Verdict |
+|---|---|---|---|---|
+| Reset `SentenceFactory` at the end of the polluting test | **repair agent** | 5 / 5 | CLEAN (model: 95% real fix) | **VERIFIED** |
+
+What the agents did: triage read the failure and the source, then made **one** `run_pair` call on `SentenceFactoryTest`. The class as a whole passed, so the tool pinned its methods one at a time, and the 14th, `testRegisterParserWithAlternativeBeginChar`, broke the victim. Triage recorded that hypothesis at 0.9 confidence. The **synthesizer** named the right root cause and polluter, and the **repair agent** added `instance.reset()` at the end of the polluting test. The gate verified it and the PR writer produced the pull request body (dry run). Wall clock: 2 min 34 s.
+
+Across all four runs: 157 JVM executions, 3.6 s each on average.
+
+### What we changed between run 2 and run 4, and why
+
+1. **`run_pair` pins methods when a class passes.** A class that resets shared state before each test hides its polluting method at class level. The tool now pins each method in turn when the whole class does not break the victim.
+2. **A budget of 12 pairings per attempt**, shared by the whole team, so no agent can brute-force the suite again.
+3. **Generic examples in tool descriptions.** In run 2 the tool descriptions the agents read still used this target's class and method names as examples. They were replaced with made-up names before run 4, so run 4's diagnosis did not come from the prompt.
+4. **The band-aid judge no longer reads the agents' diagnosis.** In run 1 the model rated the wrong-class patch "95% real fix". In run 2, after reading the agents' wrong diagnosis, it called the same patch a "90% band-aid". The scanner gave the same answer both times. **A model's opinion is not a safety mechanism. The rerun harness and the deterministic scanner are.**
 
 ---
 
@@ -121,17 +132,17 @@ The same run showed why the scanner outranks the model. The wrong-class patch wa
 
 | Capability | Status on September 13, 2026 |
 |---|---|
-| Rerun harness, band-aid scanner, per-candidate verdicts | **Verified**: 134 JVM runs recorded |
-| Three planted candidates, three different verdicts | **Verified** at 30 reruns |
-| Strands graph on Amazon Nova 2 Lite, verified path (intake to open_pr) | **Verified** once, at 5 reruns |
+| Rerun harness, band-aid scanner, per-candidate verdicts | **Verified**: 157 JVM runs recorded |
+| Three planted candidates, three different verdicts | **Verified** at 30 reruns (run 1) |
 | Gate refuses an agent-written wrong fix | **Verified** (run 2) |
-| `refuse` node (no candidate verified) | Implemented, not yet run |
-| Swarm handoffs between specialists | Not yet observed: the triage agent timed out first |
-| An agent-written fix reaching VERIFIED | Not yet |
-| Pull request opened on GitHub | Implemented; run so far as a dry run only |
+| `refuse` node when no candidate is verified | **Verified** (run 3) |
+| Agents find the polluter and write a fix the gate verifies | **Verified** once, at 5 reruns (run 4) |
+| Strands graph on Amazon Nova 2 Lite, verified path (intake to open_pr) | **Verified** in runs 2 and 4 |
+| Swarm handoffs between specialists | Not yet observed: in run 4 triage confirmed the cause itself |
+| Pull request opened on GitHub | Implemented, fork and token set up; run so far as a dry run only |
 | 200-rerun demo run | Not yet recorded |
 | Amazon Bedrock AgentCore deployment of the gate | Code path exists, not deployed |
-| Web dashboard | In progress |
+| Web UI (`frontend/`): landing page and dashboard | **Verified** in a browser on real data: served by `dashboard/app.py`, polling `/api/replay` |
 
 ---
 
@@ -176,8 +187,10 @@ python -m agent run --target marine-api --no-agent --plant "demo/candidates/*.di
 **The full agent pipeline** (drop `--no-pr` and set `GITHUB_TOKEN` to open a real pull request on your fork):
 
 ```bash
-python -m agent run --target marine-api --plant "demo/candidates/*.diff" --reruns 200 --no-pr
+python -m agent run --target marine-api --reruns 200 --no-pr
 ```
+
+Add `--plant "demo/candidates/*.diff"` to judge the planted candidates alongside the agents' own.
 
 **See what was recorded, export it, run the tests:**
 
@@ -186,6 +199,23 @@ python -m agent status
 python -m agent export --out replay.json
 python -m unittest discover -s tests -t .
 ```
+
+**Open the web UI** (landing page and dashboard, reading the same `runs.db`; needs Node.js, tested with Node 25 and npm 11). Build it once:
+
+```bash
+cd frontend
+npm ci
+npm run build
+cd ..
+```
+
+Then start the app and open http://localhost:8000:
+
+```bash
+python -m uvicorn dashboard.app:app --port 8000
+```
+
+The dashboard polls `/api/replay` every 3 seconds, so a run in progress fills in live. For UI development, `npm run dev` in `frontend/` serves on http://localhost:5173 and proxies `/api` to the app.
 
 Other commands: `verify` reruns any test N times, and `findpolluter` sweeps every test class to find which one breaks a victim.
 
@@ -201,7 +231,7 @@ agent/
   pipeline.py   the Strands Graph and its conditional edges
   swarm.py      the 4-agent diagnosis Swarm
   nodes.py      deterministic graph nodes: intake, gate, refuse
-  tools.py      the 12 Strands tools
+  tools.py      the 12 Strands tools, including the pairing budget and method sweep
   hooks.py      TraceHooks and RefusalGuard
   gate.py       Blade 2: scanner plus structured-output model opinion
   bandaid.py    the deterministic band-aid scanner
@@ -217,8 +247,9 @@ agent/
   config.py     settings from the environment and .env
 demo/candidates/  the three planted patches
 docs/             architecture diagram (SVG and PNG)
-tests/            unit tests: scanner, Surefire parser, patch loading
-dashboard/        FastAPI app (UI in progress)
+tests/            unit tests: scanner, Surefire parser, patch loading, judge independence
+dashboard/        FastAPI app: /api/replay and the built web UI from one address
+frontend/         React web UI (landing page and dashboard) on real data from runs.db
 ```
 
 ---
@@ -228,7 +259,7 @@ dashboard/        FastAPI app (UI in progress)
 Targets come from [IDoFT](https://github.com/TestingResearchIllinois/idoft), the International Dataset of Flaky Tests, which records each flaky test with its category and its fix pull request, so ground truth is free. Two lessons are encoded in [`agent/targets.py`](agent/targets.py):
 
 1. **IDoFT's "SHA Detected" is not reliably where the flake lives.** Flakeproof checks out the fix commit's parent, the last state where the bug provably existed.
-2. **Class-level ordering is not always enough.** The polluting class resets state before each test, so only the last method to run leaves it dirty. The polluter is pinned at method level.
+2. **Class-level ordering is not always enough.** The polluting class resets state before each test, so only the last method to run leaves it dirty. The polluter is pinned at method level. Run 2 showed an agent falling into exactly this trap, which is why `run_pair` now pins methods itself.
 
 The marine-api reproduction was verified by hand first: all 12 victims pass in isolation and all 12 fail when the polluting method runs first, matching the 12 tests IDoFT lists for PR #109. A second candidate, ormlite-core PR #310, was investigated and rejected: 131 of 131 candidate polluter classes swept, plus a full 1,440-test run, with zero failures.
 
@@ -243,9 +274,11 @@ Automated repair of order-dependent tests is not new. [iFixFlakies](https://doi.
 ## Limitations and next steps
 
 - **Order-dependent flaky tests only.** Async-wait flakes need a different Blade 1, because controlling test order does not make them reproduce.
-- **The swarm is the weakest link today.** The triage agent explored by brute force instead of reading the stack trace first. Next: give it the polluter sweep as a tool, and tighten the prompts.
+- **Blade 1 cannot rank two real fixes.** The agents' inline `reset()` in run 4 and the maintainers' `@After` both pass every rerun. The inline version would not run if an earlier assertion in that test failed, so the `@After` is sturdier. A reviewer still has to prefer it.
+- **The agent path has been measured at 5 reruns only.** Next: the 200-rerun run.
+- **No swarm handoff observed yet.** In run 4 triage confirmed the cause itself. Next: a target where the first specialist is the wrong one.
 - **One target so far.** Next: more IDoFT order-dependent tests with verified reproductions.
-- **Next:** the 200-rerun demo run, a real pull request on a fork, the dashboard, and deploying the gate on Amazon Bedrock AgentCore.
+- **Next:** a real pull request on the fork, and deploying the gate on Amazon Bedrock AgentCore.
 
 ---
 

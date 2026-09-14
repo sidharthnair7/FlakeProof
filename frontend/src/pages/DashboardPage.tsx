@@ -1,5 +1,5 @@
-import React from "react";
-import { useAgentSimulation } from "../hooks/useAgentSimulation";
+import React, { useState } from "react";
+import { useReplay } from "../hooks/useReplay";
 import { DashboardHeader } from "../components/dashboard/DashboardHeader";
 import { AgentRail } from "../components/dashboard/AgentRail";
 import { KanbanBoard } from "../components/dashboard/KanbanBoard";
@@ -7,62 +7,22 @@ import { MetricsAndActivityRail } from "../components/dashboard/MetricsAndActivi
 import { CardDetailModal } from "../components/dashboard/CardDetailModal";
 
 export const DashboardPage: React.FC = () => {
-  const {
-    testCases,
-    agents,
-    logs,
-    isRunning,
-    speedMultiplier,
-    activeSeed,
-    activeBranch,
-    selectedTest,
-    setActiveBranch,
-    setSelectedTest,
-    togglePause,
-    setSpeed,
-    stepNext,
-    triggerNewFlake,
-    selectPatch,
-    resetSimulation,
-  } = useAgentSimulation();
+  const { testCases, agents, agentsAttemptId, logs, metrics, tally, loading, error, lastUpdated, refresh } =
+    useReplay();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedTest = testCases.find((t) => t.id === selectedId) ?? null;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
-      {/* Top Header */}
-      <DashboardHeader
-        isRunning={isRunning}
-        speedMultiplier={speedMultiplier}
-        activeSeed={activeSeed}
-        activeBranch={activeBranch}
-        onTogglePause={togglePause}
-        onSetSpeed={setSpeed}
-        onStepNext={stepNext}
-        onTriggerFlake={triggerNewFlake}
-        onReset={resetSimulation}
-        onBranchChange={setActiveBranch}
-      />
+      <DashboardHeader tally={tally} lastUpdated={lastUpdated} error={error} loading={loading} onRefresh={refresh} />
 
-      {/* Main 3-Pane Layout */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left: Swarm & Gate Agent Rail */}
-        <AgentRail agents={agents} />
-
-        {/* Center: 4-Column Pipeline Kanban Board */}
-        <KanbanBoard
-          testCases={testCases}
-          onSelectTest={setSelectedTest}
-        />
-
-        {/* Right: Gate Verdict Metrics & SQLite Audit Trail */}
-        <MetricsAndActivityRail logs={logs} />
+        <AgentRail agents={agents} attemptId={agentsAttemptId} />
+        <KanbanBoard testCases={testCases} loading={loading} error={error} onSelectTest={(t) => setSelectedId(t.id)} />
+        <MetricsAndActivityRail metrics={metrics} tally={tally} logs={logs} />
       </div>
 
-      {/* Card Detail / Two-Blade Gate Modal */}
-      <CardDetailModal
-        test={selectedTest}
-        onClose={() => setSelectedTest(null)}
-        onSelectPatch={selectPatch}
-      />
+      <CardDetailModal test={selectedTest} onClose={() => setSelectedId(null)} />
     </div>
   );
 };

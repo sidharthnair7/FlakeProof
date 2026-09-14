@@ -19,7 +19,7 @@ from typing import Any
 
 from agent.config import DB_PATH
 
-SCHEMA = """
+SCHEMA_TABLES = """
 CREATE TABLE IF NOT EXISTS attempts (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     test_name      TEXT    NOT NULL,          -- fqcn#method
@@ -106,7 +106,11 @@ CREATE TABLE IF NOT EXISTS gate_checks (
     model_used  INTEGER,
     created_at  TEXT    DEFAULT CURRENT_TIMESTAMP
 );
+"""
 
+# Indexes are created after the migrations below: an index on a column that an old database
+# does not have yet would stop init() before the column could be added.
+SCHEMA_INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_runs_attempt ON runs(attempt_id);
 CREATE INDEX IF NOT EXISTS idx_runs_candidate ON runs(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_events_attempt ON events(attempt_id);
@@ -139,13 +143,18 @@ def connect(path=None) -> sqlite3.Connection:
 
 
 def init(path=None) -> None:
-    with connect(path) as conn:
-        conn.executescript(SCHEMA)
+    conn = connect(path)
+    try:
+        conn.executescript(SCHEMA_TABLES)
         for table, cols in _MIGRATIONS.items():
             existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
             for col, decl in cols.items():
                 if col not in existing:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+        conn.executescript(SCHEMA_INDEXES)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ---- writers --------------------------------------------------------------------------------
@@ -281,6 +290,20 @@ def runs_for(conn, attempt_id: int, candidate_id: int | None = None, phase: str 
         params.append(phase)
     sql += " ORDER BY seq"
     return rows(conn, sql, params)
+
+
+def replay(conn) -> dict:
+    """Everything the web UI and a replay-only deployment read, as one JSON-ready document:
+    the tally, every attempt with its candidates, runs, hypotheses and events, and recent gate checks."""
+    out = {"tally": tally(conn), "attempts": [],
+           "gate_checks": rows(conn, "SELECT * FROM gate_checks ORDER BY id DESC LIMIT 100")}
+    for summary in list_attempts(conn):
+        full = get_attempt(conn, summary["id"])
+        full["runs"] = runs_for(conn, summary["id"])
+        full["baseline_passes"] = summary["baseline_passes"]
+        full["baseline_runs"] = summary["baseline_runs"]
+        out["attempts"].append(full)
+    return out
 
 
 if __name__ == "__main__":

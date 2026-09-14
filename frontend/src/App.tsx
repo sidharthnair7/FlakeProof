@@ -3,14 +3,14 @@ import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { LandingPage } from "./pages/LandingPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import SpotlightNewDemo from "./components/spotlight-new-demo";
+import { ReplayProvider } from "./hooks/useReplay";
 
-// Global shortcut listener component
+// Ctrl+D (Cmd+D on macOS) opens the dashboard
 const ShortcutHandler: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Command/Ctrl + D to toggle dashboard
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
         e.preventDefault();
         navigate("/dashboard");
@@ -26,16 +26,17 @@ const ShortcutHandler: React.FC = () => {
 
 export function App() {
   return (
-    <BrowserRouter>
-      <ShortcutHandler />
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/spotlight" element={<SpotlightNewDemo />} />
-        {/* Fallback route */}
-        <Route path="*" element={<LandingPage />} />
-      </Routes>
-    </BrowserRouter>
+    <ReplayProvider>
+      <BrowserRouter>
+        <ShortcutHandler />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/spotlight" element={<SpotlightNewDemo />} />
+          <Route path="*" element={<LandingPage />} />
+        </Routes>
+      </BrowserRouter>
+    </ReplayProvider>
   );
 }
 

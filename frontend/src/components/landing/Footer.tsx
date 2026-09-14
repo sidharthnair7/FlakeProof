@@ -25,23 +25,32 @@ export const Footer: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-foreground/60 mt-0.5">
-                Powered by Strands Agents &amp; Amazon Nova 2 Lite on Amazon Bedrock. Two-Blade Deterministic Gate.
+                Built with Strands Agents on Amazon Nova 2 Lite (Amazon Bedrock). A deterministic two-blade gate decides.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-6 text-xs text-foreground/70 font-medium">
+          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-foreground/70 font-medium">
             <Link to="/dashboard" className="hover:text-foreground transition-colors">
-              Console Dashboard
+              Dashboard
             </Link>
             <a href="#how-it-works" className="hover:text-foreground transition-colors">
-              5-Step Architecture
+              How It Works
             </a>
             <a href="#demo" className="hover:text-foreground transition-colors">
               marine-api Case Study
             </a>
             <a
-              href="https://github.com/openbase/marine-api"
+              href="https://github.com/sidharthnair7/FlakeProof"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 hover:text-foreground transition-colors"
+            >
+              <GithubIcon />
+              FlakeProof
+            </a>
+            <a
+              href="https://github.com/ktuukkan/marine-api"
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1 hover:text-foreground transition-colors"
@@ -52,7 +61,7 @@ export const Footer: React.FC = () => {
           </div>
 
           <div className="text-xs text-foreground/50 font-mono">
-            &copy; {new Date().getFullYear()} FlakeProof • No AI in the gate. Refuses all unproven fixes.
+            &copy; {new Date().getFullYear()} FlakeProof • The gate decides; agents only propose.
           </div>
         </div>
       </div>
