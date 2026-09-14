@@ -3,6 +3,17 @@ import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { ArrowLeftRight, CheckCircle2, XCircle, ShieldAlert, Sparkles, Database } from "lucide-react";
 
+/** Class#method with a line-break opportunity after the #, so long JUnit names wrap there first. */
+const TestName: React.FC<{ name: string }> = ({ name }) => {
+  const [cls, method] = name.split("#");
+  return (
+    <>
+      {cls}#<wbr />
+      {method}
+    </>
+  );
+};
+
 export const OrderDependencyDemo: React.FC = () => {
   const [isFailingOrder, setIsFailingOrder] = useState<boolean>(true);
 
@@ -71,10 +82,10 @@ export const OrderDependencyDemo: React.FC = () => {
                   )}
                 </div>
 
-                <div className="break-all font-mono text-[11px] font-semibold leading-relaxed text-foreground sm:text-xs">
-                  {isFailingOrder
+                <div className="break-words font-mono text-[11px] font-semibold leading-relaxed text-foreground sm:text-xs">
+                  <TestName name={isFailingOrder
                     ? "SentenceFactoryTest#testRegisterParserWithAlternativeBeginChar"
-                    : "AISMessageFactoryTest#testCreate"}
+                    : "AISMessageFactoryTest#testCreate"} />
                 </div>
                 <p className="text-xs text-foreground/70 mt-1">
                   {isFailingOrder
@@ -111,10 +122,10 @@ export const OrderDependencyDemo: React.FC = () => {
                   )}
                 </div>
 
-                <div className="break-all font-mono text-[11px] font-semibold leading-relaxed text-foreground sm:text-xs">
-                  {isFailingOrder
+                <div className="break-words font-mono text-[11px] font-semibold leading-relaxed text-foreground sm:text-xs">
+                  <TestName name={isFailingOrder
                     ? "AISMessageFactoryTest#testCreate"
-                    : "SentenceFactoryTest#testRegisterParserWithAlternativeBeginChar"}
+                    : "SentenceFactoryTest#testRegisterParserWithAlternativeBeginChar"} />
                 </div>
                 <p className="text-xs text-foreground/70 mt-1">
                   {isFailingOrder
