@@ -261,7 +261,7 @@ Automated repair of order-dependent tests has been studied before. [iFixFlakies]
 ## Team
 
 - Sidharth Nair ([@sidharthnair7](https://github.com/sidharthnair7))
-- [@basudevbiju](https://github.com/basudevbiju), web UI design
+- Basudev Biju ([@basudevbiju](https://github.com/basudevbiju)), web UI design
 
 ## Third-party work
 
