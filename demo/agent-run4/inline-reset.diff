@@ -1,0 +1,14 @@
+# title: Written by the repair agent in run 4: reset SentenceFactory at the end of the polluting test
+# rationale: The flaky test occurs because SentenceFactory is a singleton and testRegisterParserWithAlternativeBeginChar unregisters the standard VDM parser without restoring it. This leaves the parser registry in an inconsistent state for subsequent tests like AISMessageFactoryTest that depend on the default VDM parser being present. By resetting the factory after unregistering the custom parser, we restore the original parser registry state, preventing cross-test contamination.
+diff --git a/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java b/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
+index e885723..a7b4147 100644
+--- a/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
++++ b/src/test/java/net/sf/marineapi/nmea/parser/SentenceFactoryTest.java
+@@ -233,6 +233,7 @@ public class SentenceFactoryTest {
+ 		assertTrue(s instanceof VDMParser);
+ 		instance.unregisterParser(VDMParser.class);
+ 		assertFalse(instance.hasParser("VDM"));
++		instance.reset();
+ 	}
+ 
+ 	/**

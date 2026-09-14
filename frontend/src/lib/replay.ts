@@ -5,6 +5,7 @@ import type {
   FlakyTestCase,
   GateMetric,
   GateVerdict,
+  OrderTally,
   PipelineStage,
   Tally,
 } from "./types";
@@ -178,10 +179,48 @@ function describeCall(detail: string | null): string {
   }
 }
 
-function toCandidate(c: RawCandidate, runs: RawRun[]): CandidatePatch {
+export const ORDER_NAMES: Record<string, string> = {
+  alphabetical: "alphabetical",
+  reversealphabetical: "reverse alphabetical",
+  random: "random",
+  filesystem: "filesystem",
+};
+const ORDER_SEQUENCE = ["alphabetical", "reversealphabetical", "random", "filesystem"];
+
+export function tallyByOrder(runs: RawRun[]): OrderTally {
+  const out: OrderTally = {};
+  for (const r of runs) {
+    const key = r.test_order ?? "unknown";
+    out[key] ??= { passes: 0, runs: 0 };
+    out[key].runs += 1;
+    if (r.passed) out[key].passes += 1;
+  }
+  return out;
+}
+
+/** Orders in which the unfixed code failed every baseline run (strict_orders in agent/github.py). */
+function strictOrdersOf(baseline: OrderTally): string[] {
+  return Object.entries(baseline)
+    .filter(([, t]) => t.runs > 0 && t.passes === 0)
+    .map(([order]) => order);
+}
+
+export function sortOrders(orders: Iterable<string>): string[] {
+  const rank = (o: string) => (ORDER_SEQUENCE.includes(o) ? ORDER_SEQUENCE.indexOf(o) : ORDER_SEQUENCE.length);
+  return Array.from(new Set(orders)).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+export function orderLabel(orders: string[]): string {
+  return orders.map((o) => ORDER_NAMES[o] ?? o).join(" and ");
+}
+
+function toCandidate(c: RawCandidate, runs: RawRun[], strict: string[]): CandidatePatch {
   const mine = runs.filter((r) => r.candidate_id === c.id);
   const passes = mine.filter((r) => r.passed).length;
   const passed = mine.length > 0 && passes === mine.length;
+  const byOrder = tallyByOrder(mine);
+  const strictRuns = strict.reduce((n, o) => n + (byOrder[o]?.runs ?? 0), 0);
+  const strictPasses = strict.reduce((n, o) => n + (byOrder[o]?.passes ?? 0), 0);
   const failures = Array.from(
     new Set(mine.filter((r) => !r.passed && r.failing).map((r) => r.failing as string)),
   );
@@ -201,7 +240,10 @@ function toCandidate(c: RawCandidate, runs: RawRun[]): CandidatePatch {
       passes,
       passRate: pct(passes, mine.length),
       passed,
-      boundPercent: passed ? Math.round((300 / mine.length) * 10) / 10 : null,
+      strictOrders: strict,
+      strictRuns,
+      strictPasses,
+      byOrder,
       failures,
     },
     blade2: {
@@ -216,7 +258,11 @@ function toCandidate(c: RawCandidate, runs: RawRun[]): CandidatePatch {
 
 export function toTestCase(a: RawAttempt): FlakyTestCase {
   const fqcn = a.test_name.split("#")[0];
-  const candidates = [...a.candidates].sort((x, y) => x.ordinal - y.ordinal).map((c) => toCandidate(c, a.runs));
+  const baselineByOrder = tallyByOrder(a.runs.filter((r) => r.candidate_id === null && r.phase === "baseline"));
+  const strict = strictOrdersOf(baselineByOrder);
+  const candidates = [...a.candidates]
+    .sort((x, y) => x.ordinal - y.ordinal)
+    .map((c) => toCandidate(c, a.runs, strict));
   const verified = candidates.findIndex((c) => c.verdict === "VERIFIED");
   const status: FlakyTestCase["status"] = a.status === "DONE" || a.status === "FAILED" ? a.status : "RUNNING";
   return {
@@ -236,6 +282,8 @@ export function toTestCase(a: RawAttempt): FlakyTestCase {
     baselineRuns: a.baseline_runs,
     baselineFailRate: pct(a.baseline_runs - a.baseline_passes, a.baseline_runs),
     baselineFailure: a.runs.find((r) => r.candidate_id === null && !r.passed && r.failing)?.failing ?? "",
+    baselineByOrder,
+    strictOrders: strict,
     createdAt: localTime(a.created_at),
     category: a.category ?? "",
     rootCause: a.root_cause ?? "",
@@ -321,9 +369,10 @@ export function toAgents(a: RawAttempt | undefined): AIAgent[] {
   return team;
 }
 
-const HIDDEN_KINDS = new Set(["tool_result", "node"]);
+// "tool" rows repeat what the hooks already log as "tool_call".
+const HIDDEN_KINDS = new Set(["tool", "tool_result", "node"]);
 
-export function toLogs(attempts: RawAttempt[], limit = 150): AgentLog[] {
+export function toLogs(attempts: RawAttempt[], limit = 5000): AgentLog[] {
   const events = attempts.flatMap((a) => a.events).filter((e) => !HIDDEN_KINDS.has(e.kind ?? ""));
   events.sort((x, y) => y.id - x.id);
   return events.slice(0, limit).map((e): AgentLog => {
@@ -384,17 +433,43 @@ export function latestAgentAttempt(cases: FlakyTestCase[]): FlakyTestCase | unde
   return cases.filter((c) => c.agentsRan).sort((x, y) => y.attemptId - x.attemptId)[0];
 }
 
+/**
+ * What the reruns show. A confidence bound is stated only over the orders in which the unfixed code
+ * failed every baseline run: in the other orders the flaky test runs first, where a leak cannot show.
+ */
 export function blade1Summary(p: CandidatePatch): string {
   const b = p.blade1;
   if (b.runs === 0) return p.compileError ? "Did not compile, so it was never rerun." : "No reruns recorded yet.";
-  if (b.passed) {
-    return `0 failures in ${b.runs} runs: the failure rate is below ${b.boundPercent}% at 95% confidence (rule of three).`;
+  const where = orderLabel(b.strictOrders);
+  if (b.passed && p.verdict === "REFUSED_BANDAID") {
+    return `Passed all ${b.runs} reruns and was refused anyway: see the band-aid scan.`;
   }
-  return `${b.runs - b.passes} of ${b.runs} runs failed.${b.failures[0] ? ` First failure: ${b.failures[0]}` : ""}`;
+  if (b.passed) {
+    if (b.strictRuns === 0) {
+      return `Passed all ${b.runs} reruns. No run order failed every baseline run, so no confidence bound is stated.`;
+    }
+    const bound =
+      b.strictRuns >= 30
+        ? ` Zero failures in those ${b.strictRuns} runs bounds the failure rate in that order below ${
+            Math.ceil((300 / b.strictRuns) * 10) / 10
+          }% at 95% confidence (rule of three).`
+        : " That is too few runs in that order for a confidence bound.";
+    return `Passed all ${b.runs} reruns, including ${b.strictPasses} of ${b.strictRuns} in ${where} order, where the unfixed code failed every time.${bound}`;
+  }
+  const inStrict = b.strictRuns > 0 ? `, including ${b.strictRuns - b.strictPasses} of ${b.strictRuns} in ${where} order` : "";
+  return `${b.runs - b.passes} of ${b.runs} runs failed${inStrict}.${b.failures[0] ? ` First failure: ${b.failures[0]}` : ""}`;
+}
+
+/** The deterministic scanner's words. The model's prose after them is an opinion, not evidence. */
+export function scanSummary(p: CandidatePatch): string {
+  const words = p.blade2.reason.split(" Model")[0].trim();
+  if (p.blade2.verdict === "CLEAN") return words || "No band-aid pattern found.";
+  if (p.blade2.verdict === "BANDAID") return `Band-aid${p.blade2.category ? ` (${p.blade2.category})` : ""}: ${words}`;
+  return "Not run.";
 }
 
 export function blade2Label(p: CandidatePatch): string {
-  if (p.blade2.verdict === "CLEAN") return "CLEAN";
-  if (p.blade2.verdict === "BANDAID") return p.blade2.category ? `BANDAID: ${p.blade2.category}` : "BANDAID";
-  return "not run";
+  if (p.blade2.verdict === "CLEAN") return "Clean";
+  if (p.blade2.verdict === "BANDAID") return p.blade2.category ? `Band-aid: ${p.blade2.category}` : "Band-aid";
+  return "Not run";
 }

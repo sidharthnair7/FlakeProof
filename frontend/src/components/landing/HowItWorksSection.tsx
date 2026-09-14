@@ -27,7 +27,7 @@ const STEPS: Step[] = [
     badgeVariant: "amber",
     icon: <Search className="w-5 h-5 text-status-amber" />,
     description:
-      "Before touching any code, FlakeProof reruns the victim test under rotating Surefire orders: alphabetical, reverse alphabetical, random and filesystem. It reads the Surefire XML report, never the Maven exit code, and stores every run in SQLite.",
+      "Before touching any code, Flakeproof reruns the victim test under rotating Surefire orders: alphabetical, reverse alphabetical, random and filesystem. It reads the Surefire XML report, never the Maven exit code, and stores every run in SQLite.",
     features: [
       "20 baseline runs by default",
       "Scope: order-dependent flaky tests only",
@@ -137,7 +137,7 @@ const STEPS: Step[] = [
         "# Fix flaky AISMessageFactoryTest by resetting VDM parser",
         "| Before the patch | 2/4 runs passed under rotating Surefire orders |",
         "| After the patch (Blade 1) | **5/5** runs passed under the same orders |",
-        "0 failures in 5 runs bounds the true failure rate below 60.0% at 95% confidence",
+        "// 5 of 5 reruns passed, including the one reverse-alphabetical run: a pipeline check, not statistical proof",
       ],
     },
   },
@@ -148,19 +148,11 @@ export const HowItWorksSection: React.FC = () => {
     <section id="how-it-works" className="py-20 bg-surface border-b border-border/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-          <div className="flex items-center justify-center gap-2">
-            <Badge variant="teal" size="sm">
-              AWS &quot;Agents for Humans&quot; Hackathon
-            </Badge>
-            <Badge variant="navy" size="sm">
-              Amazon Nova 2 Lite
-            </Badge>
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-            How FlakeProof Repairs Tests, and Refuses What It Cannot Prove
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+            How Flakeproof repairs tests, and refuses what it cannot prove
           </h2>
           <p className="text-base text-foreground/70">
-            Every line on the right is real output from runs recorded on September 13, 2026.
+            Every snippet is condensed from output recorded on September 13, 2026.
           </p>
         </div>
 
@@ -204,11 +196,6 @@ export const HowItWorksSection: React.FC = () => {
                           <Database className="w-3 h-3 text-status-teal" />
                           {step.codeSnippet.filename}
                         </span>
-                        <div className="flex gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-slate-700" />
-                          <div className="w-2 h-2 rounded-full bg-slate-700" />
-                          <div className="w-2 h-2 rounded-full bg-slate-700" />
-                        </div>
                       </div>
 
                       <div className="p-3.5 space-y-1 overflow-x-auto text-[11px] leading-relaxed">

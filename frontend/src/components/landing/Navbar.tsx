@@ -1,51 +1,39 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import { PillNav, type PillNavItem } from "../ui/PillNav";
-import { Terminal } from "lucide-react";
+import { Link } from "react-router-dom";
 
-const NAV_ITEMS: PillNavItem[] = [
-  { label: "Overview", href: "/" },
-  { label: "Recorded Run", href: "/#marine-api-demo" },
-  { label: "How It Works", href: "/#how-it-works" },
-  { label: "Dashboard", href: "/dashboard" },
+const LINKS = [
+  { label: "Recorded run", href: "/#marine-api-demo" },
+  { label: "Case study", href: "/#demo" },
+  { label: "How it works", href: "/#how-it-works" },
 ];
 
-export const Navbar: React.FC = () => {
-  const location = useLocation();
-
-  return (
-    <nav className="fixed top-4 left-0 right-0 z-50 flex items-center justify-center px-4 pointer-events-none">
-      <div className="flex items-center gap-3 pointer-events-auto">
-        <PillNav
-          logo="/flakeproof-logo.svg"
-          logoAlt="FlakeProof"
-          items={NAV_ITEMS}
-          activeHref={location.pathname}
-          baseColor="#0B132B"
-          pillColor="transparent"
-          hoveredPillTextColor="#FFFFFF"
-          pillTextColor="#1E293B"
-          ease="power3.easeOut"
-          initialLoadAnimation={true}
-        />
-
-        <div className="hidden lg:flex items-center gap-2">
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-navy text-white text-xs font-semibold shadow-card hover:bg-navy-600 hover:shadow-glow transition-all active:scale-95 border border-navy-700/50 backdrop-blur-md"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-teal opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-status-teal" />
-            </span>
-            <Terminal className="w-3.5 h-3.5 text-teal-300 ml-0.5" />
-            <span>Agent Console</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-slate-300 ml-0.5">Ctrl+D</kbd>
-          </Link>
-        </div>
-      </div>
-    </nav>
-  );
-};
+export const Navbar: React.FC = () => (
+  <header className="sticky top-0 z-40 border-b border-border/80 bg-[#FAFAF9]">
+    <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
+      <Link to="/" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <img src="/flakeproof-logo.svg" alt="" className="h-6 w-6" />
+        Flakeproof
+      </Link>
+      <nav className="hidden items-center gap-6 text-sm text-foreground/70 md:flex">
+        {LINKS.map((link) => (
+          <a key={link.href} href={link.href} className="hover:text-foreground">
+            {link.label}
+          </a>
+        ))}
+        <a
+          href="https://github.com/sidharthnair7/FlakeProof"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-foreground"
+        >
+          GitHub
+        </a>
+      </nav>
+      <Link to="/dashboard" className="rounded-md bg-navy px-3.5 py-2 text-sm font-medium text-white hover:bg-navy-600">
+        Open the dashboard
+      </Link>
+    </div>
+  </header>
+);
 
 export default Navbar;

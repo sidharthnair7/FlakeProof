@@ -4,6 +4,8 @@ export type GateVerdict = "VERIFIED" | "REFUSED_BANDAID" | "REFUSED_UNPROVEN";
 
 export type PipelineStage = "intake" | "diagnosis" | "gate" | "verdict";
 
+export type OrderTally = Record<string, { passes: number; runs: number }>;
+
 export interface CandidatePatch {
   id: string;
   number: number; // candidates.id in runs.db
@@ -19,7 +21,10 @@ export interface CandidatePatch {
     passes: number;
     passRate: number; // 0 to 100, one decimal
     passed: boolean; // every rerun passed
-    boundPercent: number | null; // rule of three (3/N), only when every rerun passed
+    strictOrders: string[]; // orders in which the unfixed code failed every baseline run
+    strictRuns: number; // this patch's reruns in those orders: the only runs that can catch the leak
+    strictPasses: number;
+    byOrder: OrderTally;
     failures: string[]; // distinct failure messages
   };
   blade2: {
@@ -55,6 +60,8 @@ export interface FlakyTestCase {
   baselineRuns: number;
   baselineFailRate: number; // 0 to 100
   baselineFailure: string; // first baseline failure message
+  baselineByOrder: OrderTally;
+  strictOrders: string[]; // orders in which the unfixed code failed every baseline run
   createdAt: string;
   category: string;
   rootCause: string;

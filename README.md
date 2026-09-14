@@ -1,13 +1,13 @@
 # Flakeproof
 
-Flakeproof repairs flaky Java tests with a team of AI agents and checks every proposed fix before it becomes a pull request. A fix is proposed only if it passes 200 reruns under rotating test orders and a scan for band-aids such as `@Ignore`, retries and sleeps.
+Flakeproof takes flaky-test duty off a Java team's plate. Built with Strands Agents, its agents find the test that leaves shared state behind and write a fix; a deterministic gate then reruns every fix under rotating test orders and scans it for band-aids such as `@Ignore`, retries and sleeps. You get involved only when there is a decision to make: a pull request that carries its proof, or a refusal that names the line it would not accept.
 
 Built with Strands Agents and Amazon Nova 2 Lite on Amazon Bedrock for the AWS Agents for Humans Hackathon.
 
 ![Built with Strands Agents](https://img.shields.io/badge/built%20with-Strands%20Agents-2563eb)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon%20Bedrock-Nova%202%20Lite-ff9900)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab)
-![Unit tests](https://img.shields.io/badge/unit%20tests-31%20passing-16a34a)
+![Unit tests](https://img.shields.io/badge/unit%20tests-47%20passing-16a34a)
 ![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)
 
 ![Flakeproof landing page](docs/screenshots/landing.jpg)
@@ -26,7 +26,7 @@ The `@Ignore` patch passed every rerun, so a check based on reruns alone would h
 
 ![The recorded run in the web UI: the @Ignore patch passed 200 of 200 reruns and was refused as a band-aid on line 220](docs/screenshots/refusal.jpg)
 
-For the verified fix, Flakeproof opened [pull request #1](https://github.com/sidharthnair7/marine-api/pull/1) on a fork of marine-api. It contains one commit that adds six lines, and the description includes the rerun numbers from before and after the fix.
+For the verified fix, Flakeproof opened [pull request #1](https://github.com/sidharthnair7/marine-api/pull/1) on a fork of marine-api. It contains one commit that adds six lines, and the description includes the rerun numbers from before and after the fix. The verified fix passed all 50 reverse-alphabetical runs, the order in which the unfixed code failed every time.
 
 The run took 36 minutes 51 seconds for 620 JVM executions.
 
@@ -54,17 +54,17 @@ Flakeproof is a single Strands `Graph`. LLM agents diagnose the failure and writ
 | `open_pr` | agent | Writes and opens the pull request. It is the only node with that tool, and the graph reaches it only when the gate has verified a candidate |
 | `refuse` | deterministic | Runs when nothing is verified. It reports the verdict, the failed check and the offending line, and opens no pull request |
 
-In total there are 8 LLM agents, 3 deterministic nodes and 12 tools. Two separate controls sit in front of the pull request: the conditional edge in the graph, and a hook that re-reads the verdict from the database at the moment the tool is called. Every rerun, tool call and handoff is written to SQLite and shown in the web UI.
+In total there are 8 LLM agents, 3 deterministic nodes and 12 tools. In agent runs, two separate controls sit in front of the pull request: the conditional edge in the graph, and a hook that re-reads the verdict from the database at the moment the tool is called. In runs without agents, the pull request code itself refuses any candidate that is not `VERIFIED`. Every rerun, tool call and handoff is written to SQLite and shown in the web UI.
 
 ### The gate
 
 Each candidate is applied to a clean checkout, compiled and checked twice.
 
-The first check reruns the flaky test N times (200 in the demo) with the polluting test method pinned in front of it, rotating Surefire's run orders: alphabetical, reverse alphabetical, random and filesystem. Every run must pass. Results come from the Surefire XML reports rather than the Maven exit code, stale reports are deleted before each run, and a skipped test counts as a failure.
+The first check reruns the flaky test N times (200 in the demo) in the same JVM as the polluting test method, rotating Surefire's run orders: alphabetical, reverse alphabetical, random and filesystem. Every run must pass. Results come from the Surefire XML reports rather than the Maven exit code, stale reports are deleted before each run, and a skipped test counts as a failure. For the demo test, reverse-alphabetical order always runs the polluting method first, random order sometimes does, and alphabetical and filesystem order run the flaky test first, where a leak cannot show.
 
 The second check scans the diff for eight kinds of band-aid: sleeps, retries, ignored tests, longer timeouts, pinned test order, fork isolation, weakened assertions and swallowed failures. A Nova judge with structured output reviews the diff as well. The judge can add a refusal but cannot clear a scanner hit, and it never sees the agents' diagnosis.
 
-A candidate is `VERIFIED` only when the scan is clean and every rerun passes. Otherwise it is `REFUSED_BANDAID` or `REFUSED_UNPROVEN`. Zero failures in N runs bounds the true failure rate below 3/N at 95% confidence (the rule of three), which is below 1.5% at 200 runs. The pull request states this bound.
+A candidate is `VERIFIED` only when the scan is clean and every rerun passes. Otherwise it is `REFUSED_BANDAID` or `REFUSED_UNPROVEN`. Only runs where the polluting test goes first can catch an unfixed leak, so the confidence bound counts only the run orders in which the unfixed code failed every baseline run. In the demo, the verified fix passed all 50 reverse-alphabetical runs, an order in which the unfixed code failed 13 of 13 baseline runs across all attempts. Zero failures in 50 such runs bounds the failure rate in that order below 6% at 95% confidence (the rule of three). The pull request states the bound the same way.
 
 ### Strands Agents features used
 
@@ -80,9 +80,11 @@ A candidate is `VERIFIED` only when the scan is clean and every rerun passes. Ot
 
 ## Web UI
 
-The web UI is served by a FastAPI app and reads the same SQLite database, refreshing every 3 seconds, so a run in progress fills in live. The landing page walks through the recorded demo run. The dashboard shows each agent's tool calls, every candidate with its verdict, and the full event trace.
+The web UI is served by a FastAPI app and reads the same SQLite database, refreshing every 3 seconds, so a run in progress fills in live. Local file paths are removed before the data leaves the server. The landing page walks through the recorded demo run. The dashboard starts with what needs a decision (a pull request whose fix was proven), then lists every run with its verdicts and shows who acted in the latest agent run. Selecting a run opens its evidence: the patches side by side, reruns by test order, the diff and the event log.
 
 ![Flakeproof dashboard](docs/screenshots/dashboard.png)
+
+![Run 5's evidence: the three patches side by side and reruns by test order](docs/screenshots/run-detail.png)
 
 ## The demo target
 
@@ -101,7 +103,9 @@ Before the 200-rerun demo, Flakeproof ran on the same flaky test four times on S
 | 3 | Refusal path | Only the two bad candidates were planted. Both were refused, the `refuse` node ran and no pull request was opened |
 | 4 | Agents after the tool fixes below | Triage found the polluting method with a single `run_pair` call. The repair agent reset the factory at the end of that test, the gate verified it at 5/5, and the PR writer produced the pull request description |
 
-Across all five runs, Flakeproof recorded 777 JVM executions averaging 3.5 seconds each.
+After the demo, the repair agent's run-4 patch was re-judged on its own at 200 reruns, with no model involved (run 7; run 6 was interrupted and is recorded as failed). It passed all 200, including 50 of 50 reverse-alphabetical runs, the order in which the unfixed code failed every baseline run. The patch is in [`demo/agent-run4/`](demo/agent-run4).
+
+Across runs 1 to 5, Flakeproof recorded 777 JVM executions averaging 3.5 seconds each.
 
 ### What changed after run 2
 
@@ -119,10 +123,10 @@ The tool descriptions had used this project's class and method names as examples
 | Pull request opened on GitHub for the verified fix | Verified ([PR #1](https://github.com/sidharthnair7/marine-api/pull/1)) |
 | Gate refuses a wrong fix written by the repair agent | Verified (run 2) |
 | Refusal path with no pull request | Verified (run 3) |
-| Agents find the cause and write a fix the gate verifies | Verified once, at 5 reruns (run 4) |
+| Agents find the cause and write a fix the gate verifies | Verified: found and fixed in run 4 (5 reruns); the same patch passed 200 of 200 when re-judged in run 7 |
 | Web UI on live data | Verified in a browser |
 | Handoffs between swarm specialists | Not yet observed |
-| Deployment of the gate on Amazon Bedrock AgentCore | Code path exists, not deployed |
+| Deployment of the gate on Amazon Bedrock AgentCore | Not deployed |
 
 ## Getting started
 
@@ -150,7 +154,7 @@ python -m agent prepare --target marine-api
 
 `prepare` clones marine-api, checks out the parent of the upstream fix and builds it once, so later reruns work offline.
 
-Scan a single patch for band-aids (no JVM; exit code 0 for clean, 2 for band-aid):
+Scan a single patch for band-aids (no JVM; exit code 0 for clean, 2 for band-aid; add `--no-model` to use only the deterministic scanner, with no AWS access):
 
 ```bash
 python -m agent gate demo/candidates/02-ignore-polluter.diff
@@ -228,9 +232,11 @@ agent/
 dashboard/        FastAPI app serving /api/replay and the built web UI
 frontend/         React web UI (landing page and dashboard)
 demo/candidates/  the three planted patches
+demo/agent-run4/  the repair agent's run-4 patch, re-judged at 200 reruns
 docs/             architecture diagram and screenshots
 tests/            unit tests: scanner, Surefire parser, patch loading, judge independence,
-                  database migration, pull request context and uploads
+                  database migration and redaction, test-name validation, both pull request
+                  locks, pull request evidence, context and uploads
 ```
 
 ## How the reproduction was built
@@ -247,7 +253,8 @@ Automated repair of order-dependent tests has been studied before. [iFixFlakies]
 
 - Only order-dependent flaky tests are supported. Async flakes need a different rerun strategy, because controlling test order does not make them reproduce.
 - Reruns cannot rank two correct fixes. The agents' inline `reset()` from run 4 and the maintainers' `@After` both pass every rerun, but the inline version would be skipped if an earlier assertion in the test failed, so a reviewer still has to prefer the `@After`.
-- The agent pipeline has been measured at 5 reruns; the 200-rerun demo judged planted candidates.
+- The full agent pipeline has run end to end at 5 reruns per candidate. The agents' fix reached 200 reruns only when re-judged on its own afterwards (run 7).
+- Random-order runs do not record the class order Surefire used, so they are not counted in the confidence bound.
 - No swarm handoff has been observed yet, because triage confirmed the cause itself in run 4. A target where the first specialist is the wrong one would exercise it.
 - There is one target so far. More IDoFT order-dependent tests with verified reproductions are next, followed by deploying the gate on Amazon Bedrock AgentCore.
 

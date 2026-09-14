@@ -167,7 +167,7 @@ def _refusal_line(cand: dict, runs: list[dict], strict: list[str]) -> str:
         where = f", line {cand['blade2_line_no']}" if cand.get("blade2_line_no") else ""
         scan = _scanner_words(cand.get("blade2_reason") or "")
         return (f"{head}: **refused as a band-aid** ({cand.get('blade2_category') or 'band-aid'}{where}). "
-                f"It passed {passes} of {total} reruns. {scan}").rstrip()
+                f"It passed {passes} of {total} reruns." + (f" Scanner: {scan}" if scan else ""))
     text = f"{head}: **refused, not proven.** {passes} of {total} reruns passed."
     strict_runs = [r for r in runs if r["test_order"] in strict]
     if strict_runs:

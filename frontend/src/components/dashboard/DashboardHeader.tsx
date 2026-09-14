@@ -1,69 +1,56 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Button } from "../ui/Button";
-import { ShieldCheck, RefreshCw, ArrowLeft, Database } from "lucide-react";
 import type { Tally } from "../../lib/types";
 
 interface DashboardHeaderProps {
   tally: Tally | null;
   lastUpdated: Date | null;
   error: string | null;
-  loading: boolean;
-  onRefresh: () => void;
+  running: boolean;
 }
 
-export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ tally, lastUpdated, error, loading, onRefresh }) => {
-  const connected = !error && !loading;
-
-  return (
-    <header className="border-b border-border bg-surface px-4 py-3 sm:px-6 shadow-sm">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Left: brand and data source */}
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            to="/"
-            className="flex items-center gap-1.5 text-xs text-foreground/60 hover:text-foreground font-medium transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Landing</span>
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ tally, lastUpdated, error, running }) => (
+  <header className="border-b border-border bg-surface">
+    <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="flex items-center gap-6">
+        <Link to="/" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <img src="/flakeproof-logo.svg" alt="" className="h-5 w-5" />
+          Flakeproof
+        </Link>
+        <nav className="hidden items-center gap-4 text-sm text-foreground/60 sm:flex">
+          <Link to="/" className="hover:text-foreground">
+            Overview
           </Link>
-
-          <span className="text-border">/</span>
-
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-navy flex items-center justify-center text-white text-xs font-bold">
-              <ShieldCheck className="w-3.5 h-3.5 text-status-teal-border" />
-            </div>
-            <span className="font-bold text-sm tracking-tight text-foreground">FlakeProof Console</span>
-            <span className="hidden sm:inline text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-              AWS Agents for Humans Hackathon
-            </span>
-          </div>
-
-          <span className="text-border">/</span>
-
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-subtle border border-border text-xs font-mono">
-            <span className={`w-2 h-2 rounded-full ${connected ? "bg-status-teal animate-pulse" : "bg-status-amber"}`} />
-            <Database className="w-3.5 h-3.5 text-foreground/60" />
-            <span className="text-foreground/80">
-              {error ? `API unreachable: ${error}` : loading ? "Connecting to the API" : "Live from data/runs.db"}
-            </span>
-          </div>
-        </div>
-
-        {/* Right: what is recorded, and a manual refresh */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-foreground/70">
-          {tally && (
-            <span>
-              {tally.attempts} attempts · {tally.attempted} candidates judged · {tally.runs} JVM runs
-            </span>
-          )}
-          {lastUpdated && <span className="text-foreground/50">updated {lastUpdated.toLocaleTimeString()}</span>}
-          <Button variant="outline" size="sm" onClick={onRefresh} icon={<RefreshCw className="w-3.5 h-3.5" />}>
-            Refresh
-          </Button>
-        </div>
+          <span className="font-medium text-foreground">Runs</span>
+          <a
+            href="https://github.com/sidharthnair7/FlakeProof"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground"
+          >
+            GitHub
+          </a>
+        </nav>
       </div>
-    </header>
-  );
-};
+
+      <div className="flex items-center gap-4 text-xs text-foreground/50">
+        {tally && (
+          <span className="hidden md:inline">
+            {tally.attempts} runs, {tally.runs.toLocaleString()} JVM test runs, {tally.prs} pull{" "}
+            {tally.prs === 1 ? "request" : "requests"}
+          </span>
+        )}
+        {error ? (
+          <span className="text-red-700">Can't reach the API</span>
+        ) : running ? (
+          <span className="flex items-center gap-1.5 text-status-teal">
+            <span className="h-1.5 w-1.5 rounded-full bg-status-teal" />
+            Run in progress
+          </span>
+        ) : lastUpdated ? (
+          <span>Updated {lastUpdated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+        ) : null}
+      </div>
+    </div>
+  </header>
+);

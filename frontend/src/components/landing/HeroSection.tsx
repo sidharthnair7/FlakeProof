@@ -1,25 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { Prism } from "../ui/Prism";
 import { DiffBlock } from "../ui/DiffBlock";
 import { useReplay } from "../../hooks/useReplay";
-import { blade1Summary, blade2Label, showcaseAttempt } from "../../lib/replay";
-import {
-  Terminal,
-  ArrowRight,
-  ShieldCheck,
-  ShieldAlert,
-  XCircle,
-  CheckCircle2,
-  GitPullRequest,
-  Database,
-  Cpu,
-  Layers,
-  Search,
-} from "lucide-react";
+import { blade1Summary, blade2Label, scanSummary, showcaseAttempt } from "../../lib/replay";
+import { Terminal, ShieldCheck, ShieldAlert, XCircle, CheckCircle2, GitPullRequest, Layers, Search } from "lucide-react";
 
-const RUN_HINT = 'python -m agent run --target marine-api --no-agent --plant "demo/candidates/*.diff" --reruns 30 --no-pr';
+const RUN_HINT = 'python -m agent run --target marine-api --no-agent --plant "demo/candidates/*.diff" --reruns 200 --no-pr';
 
 export const HeroSection: React.FC = () => {
   const { testCases, loading, error } = useReplay();
@@ -37,46 +24,18 @@ export const HeroSection: React.FC = () => {
     : undefined;
 
   return (
-    <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden border-b border-border/80 bg-[#FAFAF9]">
-      {/* Animated Raymarched Prism Background */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-90">
-        <Prism
-          animationType="rotate"
-          timeScale={0.4}
-          height={3.5}
-          baseWidth={5.5}
-          scale={3.8}
-          hueShift={0}
-          colorFrequency={1.2}
-          noise={0.35}
-          glow={1.1}
-          bloom={1.0}
-          transparent={true}
-          lightMode={true}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#FAFAF9]/85 pointer-events-none" />
-      </div>
-
-      <div
-        className="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none [mask-image:radial-gradient(ellipse_75%_50%_at_50%_35%,#000_65%,transparent_100%)]"
-        aria-hidden="true"
-      />
-
+    <section className="relative pt-14 pb-16 md:pt-20 md:pb-24 border-b border-border/80 bg-[#FAFAF9]">
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Hero Header */}
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto space-y-6">
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 border border-border shadow-xs text-xs font-medium text-foreground backdrop-blur-md hover:border-navy-300 transition-all">
-              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-status-amber font-mono font-semibold text-[11px]">
-                AWS &quot;Agents for Humans&quot; Entry
-              </span>
-              <span className="text-border">•</span>
-              <span className="text-foreground/80 font-mono">
-                Strands Agents &bull; Amazon Nova 2 Lite &bull; Amazon Bedrock
-              </span>
-              <ArrowRight className="w-3 h-3 text-foreground/50 ml-0.5" />
-            </div>
-          </motion.div>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="text-sm text-slate-600"
+          >
+            Built with Strands Agents on Amazon Bedrock (Amazon Nova 2 Lite) for the AWS Agents for Humans hackathon
+          </motion.p>
 
           <motion.div
             initial={{ opacity: 0, y: 14 }}
@@ -85,9 +44,7 @@ export const HeroSection: React.FC = () => {
           >
             <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-[-0.035em] text-[#111827] leading-[1.08] max-w-4xl mx-auto">
               Repairs flaky tests. <br />
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-600">
-                Refuses to propose any fix it can&apos;t prove.
-              </span>
+              <span className="text-teal-800">Refuses to propose any fix it can&apos;t prove.</span>
             </h1>
           </motion.div>
 
@@ -100,9 +57,9 @@ export const HeroSection: React.FC = () => {
             A <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">sleep</code>, a{" "}
             <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">retry</code> or an{" "}
             <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-sm text-slate-800">@Ignore</code> can turn a
-            flaky test green without fixing the cause. FlakeProof uses Strands Agents on Amazon Nova 2 Lite to diagnose the
-            failure and write a fix, and a <strong>deterministic gate</strong> decides: every rerun must pass, and a band-aid
-            scanner refuses masks even when they pass.
+            flaky test green without fixing the cause. Flakeproof uses Strands Agents on Amazon Nova 2 Lite to diagnose the
+            failure and write a fix, and a deterministic gate decides: every rerun must pass, and a band-aid scanner refuses
+            masks even when they pass. You only hear from it for a pull request that carries its proof.
           </motion.p>
 
           <motion.div
@@ -116,8 +73,7 @@ export const HeroSection: React.FC = () => {
               className="flex items-center gap-2.5 px-6 py-3 rounded-xl bg-[#0B132B] text-white text-sm font-semibold shadow-[0_4px_14px_0_rgba(11,19,43,0.25)] hover:bg-[#141C33] hover:shadow-[0_6px_20px_0_rgba(11,19,43,0.35)] transition-all active:scale-98"
             >
               <Terminal className="w-4 h-4 text-teal-300" />
-              <span>Open the Dashboard</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white/15 text-[11px] font-mono text-slate-200">Ctrl+D</kbd>
+              <span>Open the dashboard</span>
             </Link>
 
             <a
@@ -125,30 +81,8 @@ export const HeroSection: React.FC = () => {
               className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-slate-800 border border-slate-200 shadow-xs hover:bg-slate-50 hover:border-slate-300 text-sm font-semibold transition-all active:scale-98"
             >
               <Search className="w-4 h-4 text-status-teal" />
-              <span>See a Recorded Run</span>
+              <span>See a recorded run</span>
             </a>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
-            className="flex flex-wrap items-center justify-center gap-3 pt-4 text-xs font-mono text-slate-500"
-          >
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-border shadow-2xs font-medium text-slate-700">
-              <Cpu className="w-3.5 h-3.5 text-status-amber" />
-              Strands Swarm (4 Diagnosis Agents)
-            </span>
-            <span className="text-border">•</span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-border shadow-2xs font-medium text-slate-700">
-              <ShieldCheck className="w-3.5 h-3.5 text-status-teal" />
-              Two-Blade Gate (Reruns + Band-Aid Scan)
-            </span>
-            <span className="text-border">•</span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-border shadow-2xs font-medium text-slate-700">
-              <Database className="w-3.5 h-3.5 text-navy" />
-              SQLite Record of Every Run
-            </span>
           </motion.div>
         </div>
 
@@ -163,7 +97,7 @@ export const HeroSection: React.FC = () => {
           {!showcase || !activePatch ? (
             <div className="p-8 text-center space-y-2 text-sm text-slate-600">
               <p className="font-semibold text-slate-900">
-                {loading ? "Loading recorded runs" : error ? "Can't reach the FlakeProof API" : "No judged candidates recorded yet"}
+                {loading ? "Loading recorded runs" : error ? "Can't reach the Flakeproof API" : "No judged candidates recorded yet"}
               </p>
               {!loading && (
                 <p className="font-mono text-xs break-all">
@@ -176,12 +110,7 @@ export const HeroSection: React.FC = () => {
               {/* Titlebar */}
               <div className="px-5 py-3.5 bg-slate-50/90 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-400" />
-                    <div className="w-3 h-3 rounded-full bg-amber-400" />
-                    <div className="w-3 h-3 rounded-full bg-teal-400" />
-                  </div>
-                  <span className="ml-2 text-xs font-mono font-semibold text-slate-800">
+                  <span className="text-xs font-mono font-semibold text-slate-800">
                     {showcase.repository} &bull; {showcase.testTitle}
                   </span>
                 </div>
@@ -356,7 +285,7 @@ export const HeroSection: React.FC = () => {
 
                         <div className="text-xs text-slate-700 space-y-1">
                           {activePatch.blade2.reason && (
-                            <p className="text-[11px] leading-relaxed break-words">{activePatch.blade2.reason}</p>
+                            <p className="text-[11px] leading-relaxed break-words">{scanSummary(activePatch)}</p>
                           )}
                           {activePatch.blade2.line && (
                             <div className="mt-1 p-2 rounded bg-red-100/70 border border-red-200 font-mono text-[11px] text-red-900 break-all">

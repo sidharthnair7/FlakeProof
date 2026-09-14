@@ -20,23 +20,6 @@
   }
 }
 
-/* Subtle Haikei-inspired background grid & ambient light */
-.bg-grid-pattern {
-  background-size: 32px 32px;
-  background-image: 
-    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
-}
-
-.bg-radial-ambient {
-  background: radial-gradient(circle at 50% 0%, rgba(11, 19, 43, 0.05) 0%, rgba(250, 250, 249, 0) 70%);
-}
-
-.bg-dot-pattern {
-  background-image: radial-gradient(rgba(11, 19, 43, 0.08) 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-
 /* Custom scrollbars for dev-tool tables and activity logs */
 ::-webkit-scrollbar {
   width: 6px;
@@ -69,19 +52,4 @@
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-@keyframes marquee {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.animate-marquee {
-  display: flex;
-  width: max-content;
-  animation: marquee 35s linear infinite;
 }

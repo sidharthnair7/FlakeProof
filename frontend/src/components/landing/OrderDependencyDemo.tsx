@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
-import { ArrowLeftRight, CheckCircle2, XCircle, ShieldAlert, Sparkles, Database } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, XCircle, ShieldAlert } from "lucide-react";
 import { useReplay } from "../../hooks/useReplay";
 import { showcaseAttempt, shortTestName } from "../../lib/replay";
 
@@ -50,7 +50,7 @@ export const OrderDependencyDemo: React.FC = () => {
             JUnit 4 Test Order
           </Badge>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            The Case Study: marine-api Singleton Pollution
+            Case study: one test leaves a shared singleton dirty
           </h2>
           <p className="text-sm text-foreground/70">
             In the open-source{" "}
@@ -132,15 +132,9 @@ export const OrderDependencyDemo: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-surface-subtle border border-border flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-status-teal-light text-status-teal shrink-0">
-                <Sparkles className="w-4 h-4" />
-              </div>
+            <div className="p-4 rounded-xl bg-surface-subtle border border-border">
               <div className="space-y-1.5 text-xs">
-                <span className="font-bold text-foreground flex items-center gap-1.5">
-                  <Database className="w-3.5 h-3.5 text-navy" />
-                  How FlakeProof Handles It
-                </span>
+                <span className="font-semibold text-sm text-foreground">How Flakeproof handles it</span>
                 <p className="text-foreground/70 leading-relaxed">
                   The swarm pairs suspect tests with the victim. When a whole class passes, the tool pins its methods one at a
                   time, because a class that resets before each test hides its polluting method. Every candidate fix then goes
