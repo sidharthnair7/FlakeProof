@@ -9,6 +9,7 @@ and a harness that lies is the exact failure this project exists to prevent. Thr
   3. Skipped is not passed. @Ignore is the oldest band-aid there is; the harness counts it
      as a failure so the second blade cannot be dodged by the first.
 """
+import re
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -22,6 +23,15 @@ from agent.config import MVN_TIMEOUT_SECONDS
 # Surefire's built-in run orders. For a pair of classes, alphabetical and reversealphabetical
 # are the two deterministic orders; random and filesystem add the variation a real CI shows.
 ORDERS = ["alphabetical", "reversealphabetical", "random", "filesystem"]
+
+# What may reach -Dtest=: a test class (simple or fully qualified), optionally with #method.
+# Selectors can come from an agent's tool call, and on Windows mvn.cmd runs through cmd.exe,
+# where &, |, <, > and ^ would start or redirect a second command.
+SELECTOR = re.compile(r"[\w.$]+(#[\w$]+)?")
+
+
+def valid_selector(text: str) -> bool:
+    return bool(SELECTOR.fullmatch(text))
 
 
 @dataclass
@@ -55,13 +65,18 @@ class RerunResult:
         return self.passes / self.runs if self.runs else 0.0
 
     def confidence_line(self) -> str:
-        """Rule of three. 0 failures in N runs bounds the true failure rate below 3/N at 95%."""
+        """What the runs show, without overreach.
+
+        The rule of three (0 failures in N trials bounds the failure rate below 3/N at 95%) only
+        counts trials that could have failed. Under rotating orders some runs put the victim's
+        class first, where a leak cannot show, so no bound is stated over all N here. The pull
+        request states one over the orders in which the unfixed code failed every baseline run."""
         if not self.runs:
             return "no runs"
         if self.all_passed:
-            return (f"0 failures in {self.runs} runs: the true failure rate is below "
-                    f"{3 / self.runs:.1%} with 95% confidence (rule of three). "
-                    f"This is proof to a stated confidence, not a proof of impossibility.")
+            return (f"0 failures in {self.runs} runs under rotating orders. Only runs where the "
+                    f"polluting test runs first can catch the leak, so a confidence bound belongs "
+                    f"to those runs, not to all {self.runs}.")
         return (f"{self.runs - self.passes} failure(s) in {self.runs} runs "
                 f"({self.rate:.1%} pass). Not proven.")
 
@@ -108,12 +123,15 @@ def run_suite_once(repo: Path, fqcn: str, order: str, scope: str | None = None,
     Returns whether a report was produced. Uses `surefire:test` so the (already compiled)
     classes run without a compile phase; call repo.compile_tests() after changing sources.
     """
+    simple = fqcn.rsplit(".", 1)[-1]
+    selector = f"{scope},{simple}" if scope else simple
+    unsafe = [part for part in selector.split(",") if not valid_selector(part)]
+    if unsafe:
+        raise ValueError(f"unsafe test selector {unsafe[0]!r}: only Class or Class#method may reach Maven")
+
     report = report_path(repo, fqcn)
     if report.exists():
         report.unlink()          # a stale report is the easiest way to fool yourself
-
-    simple = fqcn.rsplit(".", 1)[-1]
-    selector = f"{scope},{simple}" if scope else simple
     try:
         repo_ops.mvn(repo, goal, f"-Dtest={selector}", f"-Dsurefire.runOrder={order}",
                      "-Dmaven.test.failure.ignore=true", "-DfailIfNoSpecifiedTests=false",

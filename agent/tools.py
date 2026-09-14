@@ -152,6 +152,9 @@ def run_pair(first: str) -> str:
             RegistryTest or RegistryTest#testRegisterCustomHandler
     """
     ctx = _ctx()
+    first = first.strip()
+    if not harness.valid_selector(first):
+        return "error: `first` must be a test class or Class#method: letters, digits, _, $ and dots only"
     if ctx.run_pair_calls >= RUN_PAIR_BUDGET:
         ctx.log("tool", "run_pair", f"refused: budget of {RUN_PAIR_BUDGET} pairings spent")
         return (f"refused: the team's {RUN_PAIR_BUDGET} pairings are spent. Reason from the evidence "
@@ -180,7 +183,7 @@ def run_pair(first: str) -> str:
         return result
 
     # The class as a whole did not break the victim. Pin each method first in turn.
-    methods = sorted(first_ran)[:MAX_METHOD_SWEEP]
+    methods = [m for m in sorted(first_ran) if harness.valid_selector(f"{simple}#{m}")][:MAX_METHOD_SWEEP]
     for name in methods:
         pinned, _ = _pair_once(ctx, fqcn, f"{simple}#{name}", order)
         if pinned is not None and not pinned.passed:
@@ -236,6 +239,9 @@ def record_diagnosis(category: str, root_cause: str, polluter: str, mechanism: s
     category = category.strip().lower()
     if category not in CATEGORY_HELP:
         return f"error: category must be one of {CATEGORIES}"
+    polluter = polluter.strip()
+    if polluter and not harness.valid_selector(polluter):
+        return "error: polluter must be a Surefire selector Class#method (letters, digits, _, $ and dots), or empty"
     ctx.diagnosis = {
         "category": category, "root_cause": root_cause.strip(), "polluter": polluter.strip(),
         "mechanism": mechanism.strip(), "fix_strategy": fix_strategy.strip(),

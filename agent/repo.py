@@ -83,9 +83,12 @@ def apply_diff(repo: Path, diff_text: str) -> tuple[bool, str]:
 
 
 def _safe_path(repo: Path, rel: str) -> Path:
+    root = repo.resolve()
     path = (repo / rel).resolve()
-    if repo.resolve() not in path.parents:
+    if root not in path.parents:
         raise ValueError("path escapes the repository")
+    if ".git" in path.relative_to(root).parts:
+        raise ValueError("files under .git are off limits")    # git config can run commands
     return path
 
 
@@ -117,7 +120,7 @@ def edit_file(repo: Path, rel: str, old: str, new: str) -> tuple[bool, str]:
 def grep(repo: Path, pattern: str, subdir: str = "src", max_hits: int = 60) -> list[tuple[str, int, str]]:
     rx = re.compile(pattern)
     hits: list[tuple[str, int, str]] = []
-    base = repo / subdir
+    base = _safe_path(repo, subdir)
     for path in sorted(base.rglob("*.java")):
         try:
             for i, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):

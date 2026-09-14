@@ -15,9 +15,10 @@ Tables
 import json
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from agent.config import DB_PATH
+from agent.config import DB_PATH, ROOT
 
 SCHEMA_TABLES = """
 CREATE TABLE IF NOT EXISTS attempts (
@@ -292,6 +293,27 @@ def runs_for(conn, attempt_id: int, candidate_id: int | None = None, phase: str 
     return rows(conn, sql, params)
 
 
+def _redact(text: str) -> str:
+    """Paths on this machine become repository-relative (or ~), in any of the spellings the
+    events hold: plain, forward slashes, or backslashes doubled by JSON."""
+    for base, spelled_as in ((ROOT, ""), (Path.home(), "~")):
+        raw = str(base).replace("\\", "/")
+        for sep in ("\\\\", "\\", "/"):
+            path = raw.replace("/", sep)
+            text = text.replace(path + sep, f"{spelled_as}{sep}" if spelled_as else "")
+            text = text.replace(path, spelled_as or ".")
+    return text
+
+
+def _public(value):
+    """The replay document is what a public deployment serves, so local paths never reach it."""
+    if isinstance(value, dict):
+        return {k: _public(v) for k, v in value.items() if k != "repo_path"}
+    if isinstance(value, list):
+        return [_public(v) for v in value]
+    return _redact(value) if isinstance(value, str) else value
+
+
 def replay(conn) -> dict:
     """Everything the web UI and a replay-only deployment read, as one JSON-ready document:
     the tally, every attempt with its candidates, runs, hypotheses and events, and recent gate checks."""
@@ -303,7 +325,7 @@ def replay(conn) -> dict:
         full["baseline_passes"] = summary["baseline_passes"]
         full["baseline_runs"] = summary["baseline_runs"]
         out["attempts"].append(full)
-    return out
+    return _public(out)
 
 
 if __name__ == "__main__":

@@ -38,10 +38,11 @@ class SurefireReport(unittest.TestCase):
 
 
 class ConfidenceStatement(unittest.TestCase):
-    def test_rule_of_three_at_200(self):
+    def test_all_passed_states_no_bound_over_runs_that_could_not_fail(self):
         line = RerunResult("T#m", runs=200, passes=200, attempt_id=1).confidence_line()
-        self.assertIn("below 1.5%", line)
-        self.assertIn("not a proof of impossibility", line)
+        self.assertIn("0 failures in 200 runs", line)
+        self.assertNotIn("1.5%", line)
+        self.assertIn("polluting test runs first", line)
 
     def test_any_failure_is_not_proven(self):
         line = RerunResult("T#m", runs=200, passes=197, attempt_id=1).confidence_line()

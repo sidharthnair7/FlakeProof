@@ -66,6 +66,30 @@ class Database(unittest.TestCase):
         self.assertEqual(attempt["events"][0]["kind"], "verdict")
         self.assertEqual(data["tally"]["runs"], 3)
 
+    def test_replay_keeps_local_paths_off_the_page(self):
+        from agent.config import ROOT
+        db.init(self.path)
+        conn = db.connect(self.path)
+        try:
+            aid = db.insert_attempt(conn, "com.example.VictimTest#testReads",
+                                    repo_path=str(ROOT / "workdir" / "repo"))
+            db.log_event(conn, aid, "pr", "github",
+                         f"dry run: PR body saved to {ROOT / 'data' / 'pr-bodies' / 'attempt-1.md'}")
+            db.log_event(conn, aid, "tool_result", "triage",
+                         {"result": f"error: {Path.home() / 'elsewhere' / 'X.java'}"})
+            data = db.replay(conn)
+        finally:
+            conn.close()
+
+        attempt = data["attempts"][0]
+        self.assertNotIn("repo_path", attempt)
+        details = [e["detail"] for e in attempt["events"]]
+        self.assertTrue(details[0].endswith(str(Path("data") / "pr-bodies" / "attempt-1.md")), details[0])
+        home = str(Path.home())
+        for detail in details:
+            for spelling in (home, home.replace("\\", "/"), home.replace("\\", "\\\\")):
+                self.assertNotIn(spelling, detail)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -78,6 +78,15 @@ def mode_label(use_agent: bool) -> str:
     return "no agents and no model; planted candidates only"
 
 
+def gate_verified(_state=None) -> bool:
+    """Edge condition out of the gate: only a verified candidate reaches open_pr."""
+    return session.get().verified_candidate_id is not None
+
+
+def gate_refused(_state=None) -> bool:
+    return not gate_verified(_state)
+
+
 def build_graph(ctx: session.RunContext):
     from strands import Agent
     from strands.multiagent import GraphBuilder
@@ -115,8 +124,8 @@ def build_graph(ctx: session.RunContext):
     b.add_edge("diagnose", "synthesize")
     b.add_edge("synthesize", "repair")
     b.add_edge("repair", "gate")
-    b.add_edge("gate", "open_pr", condition=lambda state: session.get().verified_candidate_id is not None)
-    b.add_edge("gate", "refuse", condition=lambda state: session.get().verified_candidate_id is None)
+    b.add_edge("gate", "open_pr", condition=gate_verified)
+    b.add_edge("gate", "refuse", condition=gate_refused)
     b.set_entry_point("intake")
     b.set_execution_timeout(8 * 3600)
     b.set_node_timeout(6 * 3600)
