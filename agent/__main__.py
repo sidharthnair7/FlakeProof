@@ -5,6 +5,7 @@
     python -m agent prepare --target marine-api
     python -m agent run --target marine-api [--victim Class#method] [--reruns 200] [--baseline 20]
                         [--plant demo/candidates/*.diff] [--no-agent] [--fast-refuse] [--no-pr]
+    python -m agent pr --attempt N [--dry-run]  # open the PR for an already VERIFIED attempt
     python -m agent gate PATCH.diff            # judge one patch, no JVM
     python -m agent verify <repo> <fqcn#method> [--times N] [--scope Class#method]
     python -m agent findpolluter <repo> <fqcn#method>
@@ -96,6 +97,31 @@ def cmd_run(args) -> None:
               f"blade1 {c['blade1_passes']}/{c['blade1_runs']}  blade2 {c['blade2_verdict']} {c['blade2_category'] or ''}")
     if a["pr_url"]:
         print(f"  PR: {a['pr_url']}")
+    if a["error"]:
+        print(f"  note: {a['error']}")
+
+
+def cmd_pr(args) -> None:
+    """Open the pull request for an attempt the gate already verified, without rerunning anything."""
+    from agent import github
+    from agent.pipeline import context_for_attempt
+
+    db.init()
+    conn = db.connect()
+    try:
+        ctx = context_for_attempt(conn, args.attempt, open_prs=not args.dry_run)
+        cand = db.rows(conn, "SELECT title, rationale FROM candidates WHERE id = ?",
+                       (ctx.verified_candidate_id,))[0]
+        url, body_path = github.open_pr_for_attempt(ctx, cand["title"], cand["rationale"] or cand["title"])
+        if url:
+            db.update(conn, "attempts", args.attempt, error=None)
+            print(f"PR opened: {url}")
+        elif args.dry_run:
+            print(f"dry run: PR body saved to {body_path}")
+        else:
+            print(f"GITHUB_TOKEN is not set, so nothing was sent to GitHub. PR body saved to {body_path}")
+    finally:
+        conn.close()
 
 
 def cmd_gate(args) -> None:
@@ -155,6 +181,11 @@ def main() -> None:
     s.add_argument("--fast-refuse", action="store_true", help="skip Blade 1 when Blade 2 already refused")
     s.add_argument("--no-pr", action="store_true", help="never call GitHub; save the PR body instead")
     s.set_defaults(fn=cmd_run)
+
+    s = sub.add_parser("pr", help="open the pull request for an attempt that is already VERIFIED, without rerunning")
+    s.add_argument("--attempt", type=int, required=True, help="attempt number, as shown by `status`")
+    s.add_argument("--dry-run", action="store_true", help="save the PR body instead of calling GitHub")
+    s.set_defaults(fn=cmd_pr)
 
     s = sub.add_parser("gate", help="judge one patch: real fix or band-aid (no JVM)")
     s.add_argument("patch", help="path to a unified diff, or - for stdin")

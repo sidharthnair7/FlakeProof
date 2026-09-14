@@ -8,9 +8,9 @@ the gate is conditional on the gate's own verdict, and the PR tool exists only i
 so the agents cannot reach the side effect without passing the proof engine. A hook re-checks
 the verdict at the moment of the call. Topology and hook are two independent locks.
 
-Without a model (FLAKEPROOF_PROVIDER=none), the same deterministic nodes run in sequence on
-planted candidates. That path exists so the proof engine can be exercised and demonstrated with
-no credentials at all, and it is labelled as such on the dashboard.
+With --no-agent, or without a model (FLAKEPROOF_PROVIDER=none), the same deterministic nodes run
+in sequence on planted candidates. That path exists so the proof engine can be exercised and
+demonstrated with no agents at all, and the run says so in its mode line.
 """
 from pathlib import Path
 
@@ -69,6 +69,15 @@ def check_repo_ready(target: Target, repo: Path) -> str:
     return head
 
 
+def mode_label(use_agent: bool) -> str:
+    """How a run works, stated precisely: a no-agent run can still ask a model for Blade 2's opinion."""
+    if use_agent and model_available():
+        return f"agents ({describe_model()})"
+    if model_available():
+        return f"no agents; planted candidates only; band-aid judge on {describe_model()}"
+    return "no agents and no model; planted candidates only"
+
+
 def build_graph(ctx: session.RunContext):
     from strands import Agent
     from strands.multiagent import GraphBuilder
@@ -115,6 +124,35 @@ def build_graph(ctx: session.RunContext):
     return b.build()
 
 
+def context_for_attempt(conn, attempt_id: int, open_prs: bool = True) -> session.RunContext:
+    """Rebuild the run context of a finished attempt, to open its pull request without rerunning."""
+    found = db.rows(conn, "SELECT * FROM attempts WHERE id = ?", (attempt_id,))
+    if not found:
+        raise SystemExit(f"no attempt #{attempt_id} in the database")
+    attempt = found[0]
+    verified = db.rows(conn, "SELECT id FROM candidates WHERE attempt_id = ? AND verdict = 'VERIFIED'"
+                             " ORDER BY ordinal LIMIT 1", (attempt_id,))
+    if not verified:
+        raise SystemExit(f"attempt #{attempt_id} has no VERIFIED candidate. "
+                         f"Flakeproof opens pull requests only for fixes the gate verified.")
+
+    fqcn, _, method = attempt["test_name"].partition("#")
+    ctx = session.RunContext(attempt_id=attempt_id, repo=Path(attempt["repo_path"] or ""), fqcn=fqcn,
+                             method=method, polluter=attempt["polluter"], conn=conn,
+                             project_url=attempt["project_url"] or "", open_prs=open_prs)
+    baseline = db.runs_for(conn, attempt_id, phase="baseline")
+    ctx.baseline_total = len(baseline)
+    ctx.baseline_passes = sum(r["passed"] for r in baseline)
+    ctx.verified_candidate_id = verified[0]["id"]
+
+    if open_prs:   # the pull request's base is the target's HEAD, so it must still be the fix's parent
+        target = next((t for t in TARGETS.values()
+                       if t.repo_url.rstrip("/") == ctx.project_url.rstrip("/")), None)
+        if target:
+            check_repo_ready(target, ctx.repo)
+    return ctx
+
+
 def run(target_name: str, victim: str | None = None, reruns: int = DEFAULT_RERUNS,
         baseline_runs: int = BASELINE_RUNS, plants=None, use_agent: bool = True,
         fast_refuse: bool = False, open_prs: bool = True) -> int:
@@ -139,7 +177,7 @@ def run(target_name: str, victim: str | None = None, reruns: int = DEFAULT_RERUN
         plants=list(plants or []), fast_refuse=fast_refuse, open_prs=open_prs))
 
     agentic = use_agent and model_available()
-    mode = f"agentic ({describe_model()})" if agentic else "deterministic (no model)"
+    mode = mode_label(use_agent)
     ctx.log("info", "pipeline", f"start attempt #{attempt_id} {ctx.test_name} mode={mode} "
                                 f"reruns={reruns} baseline={baseline_runs} plants={len(ctx.plants)}")
     print(f"attempt #{attempt_id}: {ctx.test_name}\n  mode: {mode}", flush=True)
@@ -158,7 +196,14 @@ def run(target_name: str, victim: str | None = None, reruns: int = DEFAULT_RERUN
             if ctx.verified_candidate_id is not None:
                 cand = db.rows(conn, "SELECT title, rationale FROM candidates WHERE id = ?",
                                (ctx.verified_candidate_id,))[0]
-                github.open_pr_for_attempt(ctx, cand["title"], cand["rationale"] or cand["title"])
+                try:
+                    github.open_pr_for_attempt(ctx, cand["title"], cand["rationale"] or cand["title"])
+                except Exception as exc:  # the verdicts are already recorded; only the side effect failed
+                    message = f"pull request not opened: {exc}"[:2000]
+                    ctx.log("error", "github", message)
+                    db.update(conn, "attempts", attempt_id, error=message)
+                    print(f"  {message}\n  retry without rerunning: python -m agent pr --attempt {attempt_id}",
+                          flush=True)
             else:
                 refuse("")
         db.update(conn, "attempts", attempt_id, status="DONE", finished_at=db.now())

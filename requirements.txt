@@ -4,6 +4,6 @@ boto3==1.43.89
 httpx==0.28.1
 pydantic==2.13.5
 
-# Dashboard (optional, not used in the demo)
+# Web app: dashboard/app.py serves /api/replay and the built web UI
 fastapi==0.141.1
 uvicorn[standard]==0.52.4

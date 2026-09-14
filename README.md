@@ -217,7 +217,13 @@ python -m uvicorn dashboard.app:app --port 8000
 
 The dashboard polls `/api/replay` every 3 seconds, so a run in progress fills in live. For UI development, `npm run dev` in `frontend/` serves on http://localhost:5173 and proxies `/api` to the app.
 
-Other commands: `verify` reruns any test N times, and `findpolluter` sweeps every test class to find which one breaks a victim.
+**If a pull request fails to open** (network, token, permissions), the verdicts are still recorded. Retry just the pull request, with no reruns:
+
+```bash
+python -m agent pr --attempt 5
+```
+
+Other commands: `verify` reruns any test N times, `findpolluter` sweeps every test class to find which one breaks a victim, and `pr --attempt N --dry-run` writes the pull request body without calling GitHub.
 
 **Planting your own candidate:** a `.diff` file whose first lines are `# title:` and `# rationale:`. Create it with `git diff --output=file.diff`, not shell redirection: Windows PowerShell's `>` writes UTF-16.
 
