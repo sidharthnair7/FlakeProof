@@ -9,3 +9,8 @@ data/*.db-shm
 data/pr-bodies/
 .env
 polluter-sweep.log
+
+research_*.md
+SOLUTION.md
+FLAKEPROOF_JUDGE_READINESS.md
+output/
